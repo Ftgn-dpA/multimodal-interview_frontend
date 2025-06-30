@@ -14,4 +14,7 @@
   font-size: 18px;
   margin-bottom: 20px;
   color: #64748b;
+}
+.custom-empty-state .custom-btn.primary {
+  min-width: 180px;
 } 

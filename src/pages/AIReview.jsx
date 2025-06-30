@@ -24,12 +24,11 @@ import Card from '../components/ui/Card';
 import Tag from '../components/ui/Tag';
 import { Title, Text, Paragraph } from '../components/ui/Typography';
 import Toast from '../components/ui/Toast';
+import Loading from '../components/ui/Loading';
 
-// 能力雷达图组件（简化版，实际项目中可以使用ECharts等库）
+// 能力雷达图组件（自定义进度条）
 const SkillRadarChart = ({ skillData }) => {
-  // 确保skillData是对象且可以转换为数组
   let skills = [];
-  
   if (skillData && typeof skillData === 'object') {
     try {
       skills = [
@@ -41,11 +40,9 @@ const SkillRadarChart = ({ skillData }) => {
         { name: '创新思维', value: skillData?.创新思维 || skillData?.innovation || 0 }
       ];
     } catch (e) {
-      console.error('处理技能数据失败:', e);
       skills = [];
     }
   }
-
   if (skills.length === 0) {
     return (
       <Card title="能力雷达图" style={{ borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
@@ -55,7 +52,6 @@ const SkillRadarChart = ({ skillData }) => {
       </Card>
     );
   }
-
   return (
     <Card title="能力雷达图" style={{ borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -64,15 +60,11 @@ const SkillRadarChart = ({ skillData }) => {
             <div style={{ width: '100px', textAlign: 'right' }}>
               <Text strong>{skill.name}</Text>
             </div>
-            <Progress 
-              percent={skill.value} 
-              size="small" 
-              strokeColor={{
-                '0%': '#108ee9',
-                '100%': '#87d068',
-              }}
-              style={{ flex: 1 }}
-            />
+            <div style={{ flex: 1 }}>
+              <div style={{ height: 10, background: '#e5e7eb', borderRadius: 6, overflow: 'hidden' }}>
+                <div style={{ width: `${skill.value}%`, height: '100%', background: 'linear-gradient(90deg, #3b82f6 0%, #22d3ee 100%)', transition: 'width 0.4s' }} />
+              </div>
+            </div>
             <div style={{ width: '50px', textAlign: 'right' }}>
               <Text type="secondary">{skill.value}%</Text>
             </div>
@@ -83,90 +75,63 @@ const SkillRadarChart = ({ skillData }) => {
   );
 };
 
-// 关键问题定位组件
+// 关键问题定位组件（自定义列表）
 const KeyIssues = ({ issues }) => {
-  // 确保issueList始终是数组
   let issueList = [];
-  
   if (issues && Array.isArray(issues)) {
     issueList = issues;
   } else if (issues && typeof issues === 'object') {
-    // 如果是对象，尝试提取数组
     issueList = issues.issues || issues.problems || [];
   } else {
-    // 默认数据
     issueList = [
       { type: '回答结构', issue: '回答缺乏STAR结构', severity: 'high' },
       { type: '非语言沟通', issue: '眼神交流不足', severity: 'medium' },
       { type: '技术深度', issue: '技术细节描述不够深入', severity: 'medium' }
     ];
   }
-
-  // 确保每个项目都有正确的结构
   issueList = issueList.map(item => ({
     type: item.type || '未知',
     issue: item.issue || item.problem || '未知问题',
     severity: item.severity || 'medium'
   }));
-
   const getSeverityColor = (severity) => {
     switch (severity) {
-      case 'high': return 'red';
-      case 'medium': return 'orange';
-      case 'low': return 'blue';
-      default: return 'default';
+      case 'high': return '#ef4444';
+      case 'medium': return '#f59e0b';
+      case 'low': return '#3b82f6';
+      default: return '#64748b';
     }
   };
-
   return (
     <Card title="关键问题定位" style={{ borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
-      <List
-        dataSource={issueList}
-        renderItem={(item, index) => (
-          <List.Item>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
-              <div style={{ 
-                width: '24px', 
-                height: '24px', 
-                borderRadius: '50%', 
-                background: '#f0f0f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '12px',
-                fontWeight: 'bold'
-              }}>
-                {index + 1}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {issueList.map((item, index) => (
+          <div key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold' }}>{index + 1}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <Text strong>{item.type}</Text>
+                <Tag color={getSeverityColor(item.severity)}>
+                  {item.severity === 'high' ? '严重' : item.severity === 'medium' ? '中等' : '轻微'}
+                </Tag>
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <Text strong>{item.type}</Text>
-                  <Tag color={getSeverityColor(item.severity)}>
-                    {item.severity === 'high' ? '严重' : item.severity === 'medium' ? '中等' : '轻微'}
-                  </Tag>
-                </div>
-                <Text type="secondary">{item.issue}</Text>
-              </div>
+              <Text type="secondary">{item.issue}</Text>
             </div>
-          </List.Item>
-        )}
-      />
+          </div>
+        ))}
+      </div>
     </Card>
   );
 };
 
-// 改进建议组件
+// 改进建议组件（自定义列表）
 const ImprovementSuggestions = ({ suggestions }) => {
-  // 确保suggestionList始终是数组
   let suggestionList = [];
-  
   if (suggestions && Array.isArray(suggestions)) {
     suggestionList = suggestions;
   } else if (suggestions && typeof suggestions === 'object') {
-    // 如果是对象，尝试提取数组
     suggestionList = suggestions.suggestions || suggestions.建议 || suggestions.advice || [];
   } else {
-    // 默认数据
     suggestionList = [
       '使用STAR方法回答问题：情境(Situation)、任务(Task)、行动(Action)、结果(Result)',
       '增加眼神交流，保持适度的目光接触',
@@ -175,25 +140,17 @@ const ImprovementSuggestions = ({ suggestions }) => {
       '准备一些具体的项目案例，展示实际解决问题的能力'
     ];
   }
-
-  // 确保每个项目都是字符串
-  suggestionList = suggestionList.map(item => 
-    typeof item === 'string' ? item : String(item)
-  );
-
+  suggestionList = suggestionList.map(item => typeof item === 'string' ? item : String(item));
   return (
     <Card title="改进建议" style={{ borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
-      <List
-        dataSource={suggestionList}
-        renderItem={(item, index) => (
-          <List.Item>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-              <Tag color="success">✔</Tag>
-              <Text>{item}</Text>
-            </div>
-          </List.Item>
-        )}
-      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {suggestionList.map((item, index) => (
+          <div key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <Tag color="#22c55e">✔</Tag>
+            <Text>{item}</Text>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 };
@@ -250,36 +207,15 @@ const AIReview = () => {
   ];
 
   if (loading) {
-    return (
-      <Layout style={{ minHeight: '100vh', background: '#f8fafc' }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: 'calc(100vh - 64px)'
-        }}>
-          <Spin size="large" />
-          <Text style={{ marginLeft: '16px' }}>正在生成AI点评...</Text>
-        </div>
-      </Layout>
-    );
+    return <Loading text="正在生成AI点评..." />;
   }
 
   if (error) {
     return (
-      <Layout style={{ minHeight: '100vh', background: '#f8fafc' }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: 'calc(100vh - 64px)',
-          flexDirection: 'column',
-          gap: '16px'
-        }}>
-          <Text type="danger">{error}</Text>
-          <Button type="primary" size="large" icon={<ArrowLeftOutlined />} onClick={() => navigate('/interview-types')} style={{ borderRadius: 12, height: 48, fontSize: 16 }}>返回面试类型</Button>
-        </div>
-      </Layout>
+      <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <Text type="danger" style={{ fontSize: 18, marginBottom: 24 }}>{error}</Text>
+        <Button type="primary" size="large" onClick={() => navigate('/interview-types')} style={{ borderRadius: 12, height: 48, fontSize: 16, minWidth: 160 }}>返回面试类型</Button>
+      </div>
     );
   }
 
@@ -306,152 +242,77 @@ const AIReview = () => {
   }
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f8fafc' }}>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: 'calc(100vh - 64px)'
-      }}>
-        <Card style={{ maxWidth: 1200, padding: '32px' }}>
-          {/* 页面标题 */}
-          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-            <Title level={2} style={{ color: '#1e293b', marginBottom: '16px' }}>
-              <TrophyOutlined style={{ color: '#f59e0b', marginRight: '12px' }} />
-              面试表现分析
-            </Title>
-            <Text type="secondary" style={{ fontSize: '16px' }}>
-              基于AI深度分析的面试表现评估报告
-            </Text>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <Card style={{ maxWidth: 1200, padding: '32px', margin: '40px auto' }}>
+        {/* 页面标题 */}
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🏆</div>
+          <Title level={2} style={{ color: '#1e293b', marginBottom: '16px' }}>
+            面试表现分析
+          </Title>
+          <Text type="secondary" style={{ fontSize: '16px' }}>
+            基于AI深度分析的面试表现评估报告
+          </Text>
+        </div>
+
+        {/* 面试基本信息 */}
+        {interviewData && (
+          <Card style={{ borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', marginBottom: '24px', border: '1px solid #e2e8f0', background: '#fff' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32 }}>
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>总体评分</div>
+                <div style={{ color: '#3b82f6', fontWeight: 700, fontSize: 28 }}>{interviewData.overallScore || 0} <span style={{ fontSize: 16, color: '#64748b', fontWeight: 400 }}>/ 100</span></div>
+              </div>
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>面试岗位</div>
+                <div style={{ color: '#10b981', fontWeight: 700, fontSize: 22 }}>{interviewData.position || '未知'}</div>
+              </div>
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>面试时长</div>
+                <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 22 }}>{interviewData.duration || 0} <span style={{ fontSize: 15, color: '#64748b', fontWeight: 400 }}>分钟</span></div>
+              </div>
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>AI模型</div>
+                <div style={{ color: '#8b5cf6', fontWeight: 700, fontSize: 20 }}>{interviewData.aiModel || 'GPT-4'}</div>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* 总体反馈 */}
+        {interviewData?.overallFeedback && (
+          <Card title={<span style={{ fontWeight: 600, color: '#1e293b' }}>总体反馈</span>} style={{ borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', marginBottom: '24px', border: '1px solid #e2e8f0', background: '#fff' }}>
+            <Paragraph style={{ fontSize: '16px', lineHeight: '1.6', color: '#334155' }}>
+              {interviewData.overallFeedback}
+            </Paragraph>
+          </Card>
+        )}
+
+        {/* 主要内容区域 */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+          <div style={{ flex: 1, minWidth: 320 }}>
+            <SkillRadarChart skillData={skillData} />
           </div>
-
-          {/* 面试基本信息 */}
-          {interviewData && (
-            <Card style={{ 
-              borderRadius: '16px', 
-              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-              marginBottom: '24px',
-              border: '1px solid #e2e8f0',
-              background: '#fff'
-            }}>
-              <Row gutter={24}>
-                <Col span={6}>
-                  <Statistic
-                    title="总体评分"
-                    value={interviewData.overallScore || 0}
-                    suffix="/ 100"
-                    valueStyle={{ color: '#3b82f6' }}
-                  />
-                </Col>
-                <Col span={6}>
-                  <Statistic
-                    title="面试岗位"
-                    value={interviewData.position || '未知'}
-                    valueStyle={{ color: '#10b981' }}
-                  />
-                </Col>
-                <Col span={6}>
-                  <Statistic
-                    title="面试时长"
-                    value={interviewData.duration || 0}
-                    suffix="分钟"
-                    valueStyle={{ color: '#f59e0b' }}
-                  />
-                </Col>
-                <Col span={6}>
-                  <Statistic
-                    title="AI模型"
-                    value={interviewData.aiModel || 'GPT-4'}
-                    valueStyle={{ color: '#8b5cf6' }}
-                  />
-                </Col>
-              </Row>
-            </Card>
-          )}
-
-          {/* 总体反馈 */}
-          {interviewData?.overallFeedback && (
-            <Card 
-              title={<span style={{ fontWeight: 600, color: '#1e293b' }}>总体反馈</span>} 
-              style={{ 
-                borderRadius: '16px', 
-                boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                marginBottom: '24px',
-                border: '1px solid #e2e8f0',
-                background: '#fff'
-              }}
-            >
-              <Paragraph style={{ fontSize: '16px', lineHeight: '1.6', color: '#334155' }}>
-                {interviewData.overallFeedback}
-              </Paragraph>
-            </Card>
-          )}
-
-          {/* 主要内容区域 */}
-          <Row gutter={[24, 24]}>
-            <Col xs={24} lg={12}>
-              <SkillRadarChart skillData={skillData} />
-            </Col>
-            <Col xs={24} lg={12}>
-              <KeyIssues issues={issues} />
-            </Col>
-          </Row>
-
-          <div style={{ marginTop: '24px' }}>
-            <ImprovementSuggestions suggestions={issues?.建议} />
+          <div style={{ flex: 1, minWidth: 320 }}>
+            <KeyIssues issues={issues} />
           </div>
+        </div>
 
-          {/* 操作按钮 */}
-          <div style={{ 
-            textAlign: 'center', 
-            marginTop: '40px',
-            padding: '24px',
-            background: '#fff',
-            borderRadius: '16px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-            border: '1px solid #e2e8f0',
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '32px'
-          }}>
-            <Button
-              size="large"
-              icon={<ArrowLeftOutlined />}
-              onClick={() => navigate('/interview-types')}
-              style={{ 
-                height: '48px', 
-                padding: '0 32px',
-                borderRadius: '12px',
-                fontSize: 16,
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                color: '#64748b',
-                fontWeight: 500,
-                transition: 'all 0.3s',
-                minWidth: 160
-              }}
-            >
-              返回面试类型
-            </Button>
-            <Button
-              type="primary"
-              size="large"
-              icon={<ArrowLeftOutlined />}
-              onClick={handleDownloadReport}
-              style={{ 
-                height: '48px', 
-                padding: '0 32px',
-                borderRadius: '12px',
-                fontSize: 16,
-                minWidth: 160
-              }}
-            >
-              下载完整报告
-            </Button>
-          </div>
-        </Card>
-      </div>
-    </Layout>
+        <div style={{ marginTop: '24px' }}>
+          <ImprovementSuggestions suggestions={issues?.建议} />
+        </div>
+
+        {/* 操作按钮 */}
+        <div style={{ textAlign: 'center', marginTop: '40px', padding: '24px', background: '#fff', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'center', gap: '32px' }}>
+          <Button size="large" onClick={() => navigate('/interview-types')} style={{ height: '48px', padding: '0 32px', borderRadius: '12px', fontSize: 16, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', fontWeight: 500, transition: 'all 0.3s', minWidth: 160 }}>
+            返回主页
+          </Button>
+          <Button type="primary" size="large" onClick={handleDownloadReport} style={{ height: '48px', padding: '0 32px', borderRadius: '12px', fontSize: 16, minWidth: 160 }}>
+            下载完整报告
+          </Button>
+        </div>
+      </Card>
+    </div>
   );
 };
 

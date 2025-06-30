@@ -5,11 +5,10 @@ import zhCN from 'antd/es/locale/zh_CN';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import InterviewTypes from './pages/InterviewTypes';
-import VideoInterview from './components/VideoInterview';
 import History from './pages/History';
 import AIReview from './pages/AIReview';
 import Demo from './pages/Demo';
-import TestVideo from './pages/TestVideo';
+import Interview from './pages/Interview';
 import { isAuthenticated } from './utils/auth';
 
 // 受保护的路由组件
@@ -33,7 +32,6 @@ const App = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/demo" element={<Demo />} />
-          <Route path="/test-video" element={<TestVideo />} />
           <Route 
             path="/interview-types" 
             element={
@@ -46,7 +44,7 @@ const App = () => {
             path="/interview/:type" 
             element={
               <ProtectedRoute>
-                <VideoInterview />
+                <Interview />
               </ProtectedRoute>
             } 
           />

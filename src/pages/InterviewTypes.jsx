@@ -1,94 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  Layout,
-  Menu,
-  message,
-  Divider,
-  Row,
-  Col,
-  Modal,
-  Steps,
-  Avatar,
-  Badge
-} from 'antd';
-import { 
-  VideoCameraOutlined, 
-  HistoryOutlined,
-  CloseOutlined,
-  RobotOutlined,
-  DatabaseOutlined,
-  CloudOutlined,
-  SettingOutlined,
-  UserOutlined,
-  BulbOutlined,
-  CodeOutlined,
-  ApiOutlined,
-  AppstoreOutlined,
-  ArrowLeftOutlined,
-  ArrowRightOutlined,
-  CheckCircleOutlined,
-  StarOutlined
-} from '@ant-design/icons';
-import { removeToken } from '../utils/auth';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Tag from '../components/ui/Tag';
-import { Title, Text, Paragraph } from '../components/ui/Typography';
+import { Title, Text } from '../components/ui/Typography';
 import Toast from '../components/ui/Toast';
+import { removeToken } from '../utils/auth';
+import { showToast } from '../utils/toast';
 
-const { Header, Content } = Layout;
-
-// 添加自定义样式
-const customStyles = `
-  .history-btn:hover {
-    background: #f8fafc !important;
-    border-color: #cbd5e1 !important;
-    color: #475569 !important;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
-  }
-  
-  .logout-btn:hover {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4) !important;
-  }
-  
-  .back-btn:hover {
-    background: #f8fafc !important;
-    border-color: #cbd5e1 !important;
-    color: #475569 !important;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
-  }
-  
-  .reselect-btn:hover {
-    background: #f8fafc !important;
-    border-color: #cbd5e1 !important;
-    color: #475569 !important;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.12) !important;
-  }
-  
-  .start-interview-btn:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
-  }
-`;
-
-// 注入样式
-if (typeof document !== 'undefined') {
-  const styleElement = document.createElement('style');
-  styleElement.textContent = customStyles;
-  document.head.appendChild(styleElement);
-}
-
-// 面试类型数据
+// 面试类型数据（用emoji图标）
 const interviewTypes = [
   {
     category: "人工智能",
-    icon: <RobotOutlined />,
+    icon: <span style={{fontSize: 28}}>🤖</span>,
     color: "#3b82f6",
     description: "机器学习、深度学习、自然语言处理等前沿技术",
     positions: [
@@ -112,7 +37,7 @@ const interviewTypes = [
   },
   {
     category: "大数据",
-    icon: <DatabaseOutlined />,
+    icon: <span style={{fontSize: 28}}>💾</span>,
     color: "#10b981",
     description: "数据处理、分析、挖掘和商业智能",
     positions: [
@@ -136,7 +61,7 @@ const interviewTypes = [
   },
   {
     category: "物联网",
-    icon: <CloudOutlined />,
+    icon: <span style={{fontSize: 28}}>☁️</span>,
     color: "#f59e0b",
     description: "传感器、嵌入式系统、IoT平台开发",
     positions: [
@@ -160,7 +85,7 @@ const interviewTypes = [
   },
   {
     category: "智能系统",
-    icon: <SettingOutlined />,
+    icon: <span style={{fontSize: 28}}>⚙️</span>,
     color: "#8b5cf6",
     description: "系统设计、性能优化、架构规划",
     positions: [
@@ -184,7 +109,7 @@ const interviewTypes = [
   },
   {
     category: "产品管理",
-    icon: <UserOutlined />,
+    icon: <span style={{fontSize: 28}}>👤</span>,
     color: "#ef4444",
     description: "产品规划、需求分析、用户体验",
     positions: [
@@ -214,6 +139,7 @@ const InterviewTypes = () => {
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showPositions, setShowPositions] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
 
   const handleLogout = () => {
     removeToken();
@@ -221,7 +147,6 @@ const InterviewTypes = () => {
   };
 
   const handleCategorySelect = (category) => {
-    console.log('选中大类:', category);
     if (category && category.positions) {
       setSelectedCategory(category);
       setSelectedPosition(null);
@@ -230,32 +155,28 @@ const InterviewTypes = () => {
   };
 
   const handlePositionSelect = (position) => {
-    console.log('选中岗位:', position);
     setSelectedPosition(position);
   };
 
   const handleStartInterview = async () => {
     if (!selectedPosition) {
-      message.warning('请选择一个面试岗位');
+      showToast(setToast, '请选择一个面试岗位', 'warning');
       return;
     }
-
     setLoading(true);
     try {
-      message.success(`开始${selectedPosition.title}面试`);
-      
+      showToast(setToast, `开始${selectedPosition.title}面试`, 'success');
       setTimeout(() => {
         navigate(`/interview/${selectedPosition.type}`);
       }, 1000);
     } catch (error) {
-      message.error('启动面试失败');
+      showToast(setToast, '启动面试失败', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleBackToCategories = () => {
-    console.log('返回大类选择');
     setShowPositions(false);
     setSelectedCategory(null);
     setSelectedPosition(null);
@@ -281,371 +202,209 @@ const InterviewTypes = () => {
     }
   };
 
-  const menuItems = [
-    {
-      key: 'history',
-      icon: <HistoryOutlined />,
-      label: '历史记录',
-      onClick: () => navigate('/history'),
-    },
-  ];
-
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f8fafc' }}>
-      <Header style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        background: '#fff',
-        padding: '0 32px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        borderBottom: '1px solid #e2e8f0',
-        height: '64px',
-        overflow: 'hidden'
+    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, visible: false })} />
+      {/* Header 区域 */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: '#fff', padding: '0 32px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        borderBottom: '1px solid #e2e8f0', height: 64, position: 'sticky', top: 0, zIndex: 10
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ 
-            width: '40px', 
-            height: '40px', 
-            borderRadius: '12px',
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 12,
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '20px',
-            color: '#fff'
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 20, color: '#fff'
           }}>
-            <VideoCameraOutlined />
+            <span role="img" aria-label="video">🎥</span>
           </div>
           <Title level={3} style={{ margin: 0, color: '#1e293b', fontWeight: 600 }}>
             AI面试模拟器
           </Title>
         </div>
-        
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '16px',
-          flexShrink: 0
-        }}>
-          <Button
-            type="text"
-            icon={<HistoryOutlined />}
-            onClick={() => navigate('/history')}
-            className="history-btn"
-            style={{
-              height: '40px',
-              padding: '0 20px',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 500,
-              color: '#64748b',
-              border: '1px solid #e2e8f0',
-              background: '#fff',
-              transition: 'all 0.3s ease',
-              minWidth: '100px',
-              flexShrink: 0
-            }}
-          >
-            历史记录
-          </Button>
-          
-          <Button
-            danger
-            onClick={handleLogout}
-            className="logout-btn"
-            style={{
-              height: '40px',
-              padding: '0 24px',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 500,
-              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-              border: 'none',
-              boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)',
-              transition: 'all 0.3s ease',
-              minWidth: '100px',
-              flexShrink: 0
-            }}
-          >
-            退出登录
-          </Button>
-        </div>
-      </Header>
-
-      <Content style={{ padding: '24px' }}>
-        <div style={{ maxWidth: 1400, margin: '0 auto' }}>
-          {/* 页面标题 */}
+        {/* 右上角按钮：一级页面显示历史/退出，二级页面只显示返回 */}
+        {!showPositions ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Button
+              type="text"
+              onClick={() => navigate('/history')}
+              style={{ height: 40, padding: '0 20px', borderRadius: 8, fontSize: 14, fontWeight: 500, color: '#64748b', border: '1px solid #e2e8f0', background: '#fff', transition: 'all 0.3s', minWidth: 100 }}
+            >
+              历史记录
+            </Button>
+            <Button
+              danger
+              onClick={handleLogout}
+              style={{ height: 40, padding: '0 24px', borderRadius: 8, fontSize: 14, fontWeight: 500, background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', border: 'none', boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)', transition: 'all 0.3s', minWidth: 100 }}
+            >
+              退出登录
+            </Button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Button 
+              onClick={handleBackToCategories}
+              style={{ height: 40, padding: '0 20px', borderRadius: 10, fontSize: 14, fontWeight: 500, color: '#64748b', border: '1px solid #e2e8f0', background: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', transition: 'all 0.3s' }}
+            >
+              ← 返回场景选择
+            </Button>
+          </div>
+        )}
+      </div>
+      {/* 内容区域 */}
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: 24 }}>
+        {/* 页面标题 */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          style={{ textAlign: 'center', marginBottom: 40 }}
+        >
+          <Title level={2} style={{ color: '#1e293b', marginBottom: 16 }}>
+            选择您的面试场景
+          </Title>
+          <Text type="secondary" style={{ fontSize: 16 }}>
+            我们提供多种技术场景的AI面试，帮助您提升面试技能
+          </Text>
+        </motion.div>
+        {/* 面试大类选择 */}
+        {!showPositions && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'center', maxWidth: 480, margin: '0 auto' }}>
+            {Array.isArray(interviewTypes) && interviewTypes.map((category, categoryIndex) => (
+              <motion.div
+                key={category.category}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: categoryIndex * 0.1 }}
+                style={{ width: '100%' }}
+              >
+                <Card
+                  hoverable
+                  style={{ borderRadius: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', width: '100%', cursor: 'pointer', transition: 'all 0.3s' }}
+                  onClick={() => handleCategorySelect(category)}
+                  bodyStyle={{ padding: 24, textAlign: 'center' }}
+                >
+                  <div style={{ width: 80, height: 80, borderRadius: '50%', background: `${category.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 32, color: category.color }}>
+                    {category.icon}
+                  </div>
+                  <Title level={4} style={{ margin: '0 0 8px 0', color: '#1e293b' }}>
+                    {category.category}
+                  </Title>
+                  <Text type="secondary" style={{ fontSize: 14, lineHeight: 1.5 }}>
+                    {category.description}
+                  </Text>
+                  <div style={{ marginTop: 16 }}>
+                    <Tag color={category.color} style={{ margin: 4 }}>
+                      {category.positions.length} 个岗位
+                    </Tag>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        )}
+        {/* 岗位选择区域 */}
+        {showPositions && selectedCategory && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            style={{ textAlign: 'center', marginBottom: '40px' }}
+            transition={{ duration: 0.5 }}
           >
-            <Title level={2} style={{ color: '#1e293b', marginBottom: '16px' }}>
-              选择您的面试方向
-            </Title>
-            <Text type="secondary" style={{ fontSize: '16px' }}>
-              我们提供多种技术方向的AI面试，帮助您提升面试技能
-            </Text>
-          </motion.div>
-
-          {/* 面试大类选择 */}
-          {!showPositions && (
-            <Row gutter={[24, 24]}>
-              {Array.isArray(interviewTypes) && interviewTypes.map((category, categoryIndex) => (
-                <Col xs={24} sm={12} lg={8} xl={6} key={category.category}>
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: categoryIndex * 0.1 }}
+            {/* 返回按钮已移至Header右上角，这里删除原有返回按钮 */}
+            {/* 岗位列表 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', maxWidth: 480, margin: '0 auto' }}>
+              {selectedCategory.positions && selectedCategory.positions.map((position, index) => (
+                <div key={position.type} style={{ width: '100%' }}>
+                  <Card
+                    hoverable
+                    style={{ border: selectedPosition?.type === position.type ? `2px solid ${selectedCategory.color}` : '1px solid #e2e8f0', borderRadius: 12, cursor: 'pointer', transition: 'all 0.3s', background: selectedPosition?.type === position.type ? `${selectedCategory.color}10` : '#fff', position: 'relative', width: '100%' }}
+                    onClick={() => handlePositionSelect(position)}
+                    bodyStyle={{ padding: 20 }}
                   >
-                    <Card
-                      hoverable
-                      style={{ 
-                        borderRadius: '16px',
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                        border: '1px solid #e2e8f0',
-                        height: '100%',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease'
-                      }}
-                      onClick={() => handleCategorySelect(category)}
-                      bodyStyle={{ padding: '24px', textAlign: 'center' }}
-                    >
-                      <div style={{ 
-                        width: '80px', 
-                        height: '80px', 
-                        borderRadius: '50%',
-                        background: `${category.color}20`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        margin: '0 auto 16px',
-                        fontSize: '32px',
-                        color: category.color
-                      }}>
-                        {category.icon}
-                      </div>
-                      
-                      <Title level={4} style={{ margin: '0 0 8px 0', color: '#1e293b' }}>
-                        {category.category}
+                    <div style={{ marginBottom: 12 }}>
+                      <Title level={5} style={{ margin: '0 0 8px 0', color: '#1e293b' }}>
+                        {position.title}
                       </Title>
-                      
-                      <Text type="secondary" style={{ fontSize: '14px', lineHeight: '1.5' }}>
-                        {category.description}
-                      </Text>
-                      
-                      <div style={{ marginTop: '16px' }}>
-                        <Tag color={category.color} style={{ margin: '4px' }}>
-                          {category.positions.length} 个岗位
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                        <Tag color={getDifficultyColor(position.difficulty)}>
+                          {position.difficulty}
+                        </Tag>
+                        <Tag color={getDemandColor(position.demand)}>
+                          需求: {position.demand}
                         </Tag>
                       </div>
-                    </Card>
-                  </motion.div>
-                </Col>
+                    </div>
+                    <Text type="secondary" style={{ fontSize: 14, lineHeight: 1.5 }}>
+                      {position.description}
+                    </Text>
+                    <div style={{ marginTop: 12 }}>
+                      <Text strong style={{ fontSize: 12, color: '#64748b' }}>
+                        核心技能:
+                      </Text>
+                      <div style={{ marginTop: 4 }}>
+                        {position.skills && position.skills.slice(0, 3).map((skill, index) => (
+                          <Tag 
+                            key={index} 
+                            size="small" 
+                            style={{ margin: 2, background: '#f1f5f9', border: 'none', color: '#64748b' }}
+                          >
+                            {skill}
+                          </Tag>
+                        ))}
+                        {position.skills && position.skills.length > 3 && (
+                          <Tag size="small" style={{ background: '#f1f5f9', border: 'none', color: '#64748b' }}>
+                            +{position.skills.length - 3}
+                          </Tag>
+                        )}
+                      </div>
+                    </div>
+                    {selectedPosition?.type === position.type && (
+                      <div style={{ position: 'absolute', top: 12, right: 12, color: selectedCategory.color, fontSize: 20, fontWeight: 700 }}>
+                        ✓
+                      </div>
+                    )}
+                  </Card>
+                </div>
               ))}
-            </Row>
-          )}
-
-          {/* 岗位选择区域 */}
-          {showPositions && selectedCategory && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              {/* 返回按钮 */}
-              <div style={{ marginBottom: '24px' }}>
-                <Button 
-                  icon={<ArrowLeftOutlined />} 
-                  onClick={handleBackToCategories}
-                  className="back-btn"
-                  style={{ 
-                    marginBottom: '16px',
-                    height: '44px',
-                    padding: '0 20px',
-                    borderRadius: '10px',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: '#64748b',
-                    border: '1px solid #e2e8f0',
-                    background: '#fff',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  返回选择方向
-                </Button>
-                
-                <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                  <Title level={2} style={{ color: '#1e293b', marginBottom: '8px' }}>
-                    {selectedCategory.category}
-                  </Title>
-                  <Text type="secondary" style={{ fontSize: '16px' }}>
-                    {selectedCategory.description}
+            </div>
+            {/* 开始面试按钮 */}
+            {selectedPosition && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{ textAlign: 'center', marginTop: 40, padding: 24, background: '#fff', borderRadius: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}
+              >
+                <div style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 16, color: '#64748b' }}>
+                    已选择: <Text strong style={{ color: '#1e293b' }}>{selectedPosition.title}</Text>
                   </Text>
                 </div>
-              </div>
-
-              {/* 岗位列表 */}
-              <Row gutter={[16, 16]}>
-                {selectedCategory.positions && selectedCategory.positions.map((position, index) => (
-                  <Col xs={24} sm={12} lg={8} key={position.type}>
-                    <Card
-                      hoverable
-                      style={{
-                        border: selectedPosition?.type === position.type 
-                          ? `2px solid ${selectedCategory.color}` 
-                          : '1px solid #e2e8f0',
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease',
-                        background: selectedPosition?.type === position.type 
-                          ? `${selectedCategory.color}10` 
-                          : '#fff'
-                      }}
-                      onClick={() => handlePositionSelect(position)}
-                      bodyStyle={{ padding: '20px' }}
-                    >
-                      <div style={{ marginBottom: '12px' }}>
-                        <Title level={5} style={{ margin: '0 0 8px 0', color: '#1e293b' }}>
-                          {position.title}
-                        </Title>
-                        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                          <Tag color={getDifficultyColor(position.difficulty)}>
-                            {position.difficulty}
-                          </Tag>
-                          <Tag color={getDemandColor(position.demand)}>
-                            需求: {position.demand}
-                          </Tag>
-                        </div>
-                      </div>
-
-                      <Text type="secondary" style={{ fontSize: '14px', lineHeight: '1.5' }}>
-                        {position.description}
-                      </Text>
-
-                      <div style={{ marginTop: '12px' }}>
-                        <Text strong style={{ fontSize: '12px', color: '#64748b' }}>
-                          核心技能:
-                        </Text>
-                        <div style={{ marginTop: '4px' }}>
-                          {position.skills && position.skills.slice(0, 3).map((skill, index) => (
-                            <Tag 
-                              key={index} 
-                              size="small" 
-                              style={{ 
-                                margin: '2px', 
-                                background: '#f1f5f9',
-                                border: 'none',
-                                color: '#64748b'
-                              }}
-                            >
-                              {skill}
-                            </Tag>
-                          ))}
-                          {position.skills && position.skills.length > 3 && (
-                            <Tag size="small" style={{ background: '#f1f5f9', border: 'none', color: '#64748b' }}>
-                              +{position.skills.length - 3}
-                            </Tag>
-                          )}
-                        </div>
-                      </div>
-
-                      {selectedPosition?.type === position.type && (
-                        <div style={{ 
-                          position: 'absolute',
-                          top: '12px',
-                          right: '12px',
-                          color: selectedCategory.color,
-                          fontSize: '20px'
-                        }}>
-                          <CheckCircleOutlined />
-                        </div>
-                      )}
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
-
-              {/* 开始面试按钮 */}
-              {selectedPosition && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  style={{ 
-                    textAlign: 'center', 
-                    marginTop: '40px',
-                    padding: '24px',
-                    background: '#fff',
-                    borderRadius: '16px',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                    border: '1px solid #e2e8f0'
-                  }}
-                >
-                  <div style={{ marginBottom: '16px' }}>
-                    <Text style={{ fontSize: '16px', color: '#64748b' }}>
-                      已选择: <Text strong style={{ color: '#1e293b' }}>{selectedPosition.title}</Text>
-                    </Text>
-                  </div>
-                  <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'center',
-                    gap: '16px'
-                  }}>
-                    <Button
-                      size="large"
-                      icon={<ArrowLeftOutlined />}
-                      onClick={() => setSelectedPosition(null)}
-                      className="reselect-btn"
-                      style={{ 
-                        height: '52px', 
-                        padding: '0 40px',
-                        borderRadius: '12px',
-                        fontSize: '15px',
-                        fontWeight: 500,
-                        color: '#64748b',
-                        border: '1px solid #e2e8f0',
-                        background: '#fff',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                        transition: 'all 0.3s ease',
-                        minWidth: '180px'
-                      }}
-                    >
-                      重新选择
-                    </Button>
-                    <Button
-                      type="primary"
-                      size="large"
-                      icon={<VideoCameraOutlined />}
-                      loading={loading}
-                      onClick={handleStartInterview}
-                      className="start-interview-btn"
-                      style={{ 
-                        height: '52px', 
-                        padding: '0 40px',
-                        borderRadius: '12px',
-                        fontSize: '16px',
-                        fontWeight: 600,
-                        background: `linear-gradient(135deg, ${selectedCategory.color} 0%, ${selectedCategory.color}dd 100%)`,
-                        border: 'none',
-                        boxShadow: `0 4px 12px ${selectedCategory.color}40`,
-                        transition: 'all 0.3s ease',
-                        minWidth: '180px'
-                      }}
-                    >
-                      {loading ? '准备中...' : '开始面试'}
-                    </Button>
-                  </div>
-                </motion.div>
-              )}
-            </motion.div>
-          )}
-        </div>
-      </Content>
-    </Layout>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                  <Button
+                    size="large"
+                    onClick={() => setSelectedPosition(null)}
+                    style={{ height: 52, padding: '0 40px', borderRadius: 12, fontSize: 15, fontWeight: 500, color: '#64748b', border: '1px solid #e2e8f0', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', transition: 'all 0.3s', minWidth: 180 }}
+                  >
+                    ← 重新选择
+                  </Button>
+                  <Button
+                    type="primary"
+                    size="large"
+                    loading={loading}
+                    onClick={handleStartInterview}
+                    style={{ height: 52, padding: '0 40px', borderRadius: 12, fontSize: 16, fontWeight: 600, background: `linear-gradient(135deg, ${selectedCategory.color} 0%, ${selectedCategory.color}dd 100%)`, border: 'none', boxShadow: `0 4px 12px ${selectedCategory.color}40`, transition: 'all 0.3s', minWidth: 180 }}
+                  >
+                    {loading ? '准备中...' : '开始面试'}
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </div>
+    </div>
   );
 };
 

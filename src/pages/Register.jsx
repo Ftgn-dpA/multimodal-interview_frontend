@@ -7,6 +7,7 @@ import Toast from '../components/ui/Toast';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import { authAPI } from '../api';
+import { showToast } from '../utils/toast';
 
 const Register = () => {
   const [loading, setLoading] = useState(false);
@@ -60,12 +61,10 @@ const Register = () => {
       await authAPI.register(formData.username, formData.password);
       
       // 显示成功消息，1.5秒后自动跳转
-      setToast({ visible: true, message: '注册成功，请登录', type: 'success' });
+      showToast(setToast, '注册成功，请登录', 'success');
       
-      // 延迟跳转，给消息足够时间显示和销毁
-      setTimeout(() => {
-        navigate('/login');
-      }, 1500);
+      // 立即跳转
+      navigate('/login');
     } catch (error) {
       let errorMessage = '注册失败';
       if (error.response?.data) {
@@ -77,7 +76,7 @@ const Register = () => {
           errorMessage = error.response.data.error;
         }
       }
-      setToast({ visible: true, message: errorMessage, type: 'error' });
+      showToast(setToast, errorMessage, 'error');
     } finally {
       setLoading(false);
     }

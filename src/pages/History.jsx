@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getInterviewHistory, getInterviewRecord, deleteInterviewRecord } from '../api';
 import { removeToken } from '../utils/auth';
+import { showToast } from '../utils/toast';
 import Toast from '../components/ui/Toast';
 import Modal from '../components/ui/Modal';
 import Loading from '../components/ui/Loading';

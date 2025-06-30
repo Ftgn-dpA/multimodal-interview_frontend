@@ -8,6 +8,7 @@ import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import { authAPI } from '../api';
 import { setToken } from '../utils/auth';
+import { showToast } from '../utils/toast';
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
@@ -48,12 +49,10 @@ const Login = () => {
       setToken(response.data.token);
       
       // 显示成功消息，1.5秒后自动跳转
-      setToast({ visible: true, message: '登录成功', type: 'success' });
+      showToast(setToast, '登录成功', 'success');
       
-      // 延迟跳转，给消息足够时间显示和销毁
-      setTimeout(() => {
-        navigate('/interview-types');
-      }, 1500);
+      // 立即跳转
+      navigate('/interview-types');
     } catch (error) {
       let errorMessage = '登录失败';
       if (error.response?.data) {
@@ -65,7 +64,7 @@ const Login = () => {
           errorMessage = error.response.data.error;
         }
       }
-      setToast({ visible: true, message: errorMessage, type: 'error' });
+      showToast(setToast, errorMessage, 'error');
     } finally {
       setLoading(false);
     }
