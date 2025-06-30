@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { message } from 'antd';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
-import { Button } from 'antd';
-import { authAPI } from '../api';
-import { setToken } from '../utils/auth';
+import Button from '../components/ui/Button';
+import Toast from '../components/ui/Toast';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
+import { authAPI } from '../api';
+import { setToken } from '../utils/auth';
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
@@ -18,6 +18,7 @@ const Login = () => {
   });
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -47,7 +48,7 @@ const Login = () => {
       setToken(response.data.token);
       
       // 显示成功消息，1.5秒后自动跳转
-      message.success('登录成功');
+      setToast({ visible: true, message: '登录成功', type: 'success' });
       
       // 延迟跳转，给消息足够时间显示和销毁
       setTimeout(() => {
@@ -64,7 +65,7 @@ const Login = () => {
           errorMessage = error.response.data.error;
         }
       }
-      message.error(errorMessage);
+      setToast({ visible: true, message: errorMessage, type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -196,10 +197,11 @@ const Login = () => {
           transition={{ duration: 0.6, delay: 0.8 }}
         >
           <p className="text-slate-500 text-sm">
-            © 2024 模拟面试系统. 让面试更简单
+            © 2025 模拟面试系统. 让面试更简单
           </p>
         </motion.div>
       </motion.div>
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, visible: false })} />
     </div>
   );
 };

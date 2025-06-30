@@ -1,86 +1,38 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Card, 
-  Button, 
-  Typography, 
-  Space, 
-  Layout,
-  Menu,
-  List,
-  Tag,
-  Row,
-  Col,
-  Modal,
-  Descriptions,
-  Progress,
-  Divider,
-  message,
-  Empty,
-  Spin,
-  Dropdown
-} from 'antd';
-import { 
-  VideoCameraOutlined, 
-  HistoryOutlined,
-  CloseOutlined,
-  PlayCircleOutlined,
-  DownloadOutlined,
-  EyeOutlined,
-  FileTextOutlined,
-  TrophyOutlined,
-  ClockCircleOutlined,
-  UserOutlined,
-  ArrowLeftOutlined,
-  LogoutOutlined,
-  MoreOutlined,
-  DeleteOutlined,
-  DownOutlined
-} from '@ant-design/icons';
-import { removeToken } from '../utils/auth';
 import { getInterviewHistory, getInterviewRecord, deleteInterviewRecord } from '../api';
-import { Menu as AntdMenu } from 'antd';
+import { removeToken } from '../utils/auth';
+import Toast from '../components/ui/Toast';
+import Modal from '../components/ui/Modal';
+import Loading from '../components/ui/Loading';
+import EmptyState from '../components/ui/EmptyState';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Tag from '../components/ui/Tag';
+import { Title, Text, Paragraph } from '../components/ui/Typography';
+import Progress from '../components/ui/Progress';
 
-const { Title, Text, Paragraph } = Typography;
-const { Header, Content } = Layout;
-
-// 添加自定义样式
-const customStyles = `
-  .history-back-btn:hover {
-    background: #f8fafc !important;
-    border-color: #cbd5e1 !important;
-    color: #475569 !important;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
-  }
-  
-  .history-logout-btn:hover {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4) !important;
-  }
-  
-  .history-action-btn:hover {
-    background: #f8fafc !important;
-    border-color: #cbd5e1 !important;
-    color: #475569 !important;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
-  }
-`;
-
-// 注入样式
-if (typeof document !== 'undefined') {
-  const styleElement = document.createElement('style');
-  styleElement.textContent = customStyles;
-  document.head.appendChild(styleElement);
-}
-
-// 在文件顶部添加全局动画样式
-if (typeof document !== 'undefined') {
-  const styleElement = document.createElement('style');
-  styleElement.textContent = `@keyframes fadeInMenu { from { opacity: 0; transform: translateY(-8px);} to { opacity: 1; transform: none; } }`;
-  document.head.appendChild(styleElement);
-}
+const CustomDeleteModal = ({ visible, onConfirm, onCancel, record }) => {
+  if (!visible) return null;
+  return (
+    <Modal
+      visible={visible}
+      title={null}
+      onOk={onConfirm}
+      onCancel={onCancel}
+      okText="删除"
+      cancelText="取消"
+    >
+      <div style={{ marginBottom: 16 }}>
+        <span style={{ fontSize: 32, color: '#ef4444', marginBottom: 8 }}>🗑️</span>
+        <Title level={4} style={{ color: '#ef4444', margin: 0 }}>确认删除</Title>
+      </div>
+      <Text style={{ fontSize: 16, color: '#475569' }}>
+        确定要删除"${record?.position || '该岗位'}的面试记录吗？<br/>此操作不可恢复。
+      </Text>
+    </Modal>
+  );
+};
 
 const History = () => {
   const navigate = useNavigate();
@@ -88,16 +40,16 @@ const History = () => {
   const [loading, setLoading] = useState(true);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [menuVisibleId, setMenuVisibleId] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const menuRef = useRef();
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleteRecord, setDeleteRecord] = useState(null);
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
 
   useEffect(() => {
     fetchHistory();
   }, []);
 
-  // 关闭菜单（点击外部）
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -112,12 +64,14 @@ const History = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openMenuId]);
 
+  const showToast = (message, type = 'info') => {
+    setToast({ visible: true, message, type });
+  };
+
   const fetchHistory = async () => {
     try {
       setLoading(true);
       const response = await getInterviewHistory();
-      
-      // 确保records始终是数组
       const recordsData = response.data;
       if (Array.isArray(recordsData)) {
         setRecords(recordsData);
@@ -127,8 +81,7 @@ const History = () => {
         setRecords([]);
       }
     } catch (error) {
-      message.error('获取历史记录失败');
-      console.error('获取历史记录失败:', error);
+      showToast('获取历史记录失败', 'error');
       setRecords([]);
     } finally {
       setLoading(false);
@@ -146,21 +99,23 @@ const History = () => {
 
   const handleViewDetail = async (record) => {
     try {
+      setLoading(true);
       const response = await getInterviewRecord(record.id);
       setSelectedRecord(response.data);
       setDetailModalVisible(true);
     } catch (error) {
-      console.error('获取详情失败:', error);
-      message.error('获取详情失败');
+      showToast('获取详情失败', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'COMPLETED': return 'success';
-      case 'IN_PROGRESS': return 'processing';
-      case 'CANCELLED': return 'error';
-      default: return 'default';
+      case 'COMPLETED': return '#22c55e';
+      case 'IN_PROGRESS': return '#3b82f6';
+      case 'CANCELLED': return '#ef4444';
+      default: return '#64748b';
     }
   };
 
@@ -188,124 +143,29 @@ const History = () => {
     return new Date(dateTime).toLocaleString('zh-CN');
   };
 
-  const menuItems = [
-    {
-      key: 'interview',
-      icon: <VideoCameraOutlined />,
-      label: '面试类型',
-      onClick: () => navigate('/interview-types'),
-    },
-    {
-      key: 'history',
-      icon: <HistoryOutlined />,
-      label: '历史记录',
-    },
-  ];
-
-  const renderSkillRadar = (skillAssessment) => {
-    if (!skillAssessment) return null;
-    
-    try {
-      const skills = JSON.parse(skillAssessment);
-      // 确保skills是对象且可以转换为数组
-      if (skills && typeof skills === 'object') {
-        const skillEntries = Object.entries(skills);
-        if (skillEntries.length === 0) return null;
-        
-        return (
-          <div style={{ marginTop: '16px' }}>
-            <Title level={5}>能力评估</Title>
-            {skillEntries.map(([skill, score]) => (
-              <div key={skill} style={{ marginBottom: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <Text>{skill}</Text>
-                  <Text strong>{score}分</Text>
-                </div>
-                <Progress 
-                  percent={score} 
-                  size="small" 
-                  strokeColor={score >= 80 ? '#52c41a' : score >= 60 ? '#faad14' : '#ff4d4f'}
-                  showInfo={false}
-                />
-              </div>
-            ))}
-          </div>
-        );
-      }
-      return null;
-    } catch (e) {
-      console.error('解析技能评估数据失败:', e);
-      return null;
-    }
-  };
-
-  const renderImprovementSuggestions = (suggestions) => {
-    if (!suggestions) return null;
-    
-    try {
-      const data = JSON.parse(suggestions);
-      let suggestionsList = [];
-      
-      // 确保suggestionsList始终是数组
-      if (data.建议 && Array.isArray(data.建议)) {
-        suggestionsList = data.建议;
-      } else if (data.suggestions && Array.isArray(data.suggestions)) {
-        suggestionsList = data.suggestions;
-      } else if (data.advice && Array.isArray(data.advice)) {
-        suggestionsList = data.advice;
-      } else if (Array.isArray(data)) {
-        suggestionsList = data;
-      } else {
-        // 如果不是数组，尝试转换为数组
-        suggestionsList = [];
-      }
-      
-      // 确保每个项目都是字符串
-      suggestionsList = suggestionsList.map(item => 
-        typeof item === 'string' ? item : String(item)
-      );
-      
-      if (suggestionsList.length === 0) return null;
-      
-      return (
-        <div style={{ marginTop: '16px' }}>
-          <Title level={5}>改进建议</Title>
-          <List
-            size="small"
-            dataSource={suggestionsList}
-            renderItem={(item, index) => (
-              <List.Item>
-                <Text>{index + 1}. {item}</Text>
-              </List.Item>
-            )}
-          />
-        </div>
-      );
-    } catch (e) {
-      console.error('解析改进建议失败:', e);
-      return null;
-    }
-  };
-
   // 删除面试记录
-  const handleDeleteRecord = async (record) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除"${record.position}"的面试记录吗？此操作不可恢复。`,
-      okText: '删除',
-      okType: 'danger',
-      cancelText: '取消',
-      centered: true,
-      onOk: async () => {
-        try {
-          await deleteInterviewRecord(record.id);
-          message.success('删除成功');
-          fetchHistory();
-        } catch (error) {
-          message.error('删除失败');
-        }
-      },
-    });
+  const handleDeleteRecord = (record) => {
+    setDeleteRecord(record);
+    setDeleteModalVisible(true);
+  };
+
+  const confirmDeleteRecord = async () => {
+    if (!deleteRecord) return;
+    try {
+      await deleteInterviewRecord(deleteRecord.id);
+      showToast('删除成功', 'success');
+      fetchHistory();
+    } catch (error) {
+      showToast('删除失败', 'error');
+    } finally {
+      setDeleteModalVisible(false);
+      setDeleteRecord(null);
+    }
+  };
+
+  const cancelDeleteRecord = () => {
+    setDeleteModalVisible(false);
+    setDeleteRecord(null);
   };
 
   // 菜单项点击
@@ -320,7 +180,7 @@ const History = () => {
     setOpenMenuId(null);
   };
 
-  // 菜单渲染
+  // 自定义下拉菜单
   const renderCustomMenu = (record) => (
     <ul
       ref={menuRef}
@@ -341,14 +201,12 @@ const History = () => {
       }}
     >
       <li
-        style={{
-          display: 'flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', cursor: 'pointer', color: '#2563eb', fontWeight: 500, fontSize: 14, borderRadius: 6,
-        }}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', cursor: 'pointer', color: '#2563eb', fontWeight: 500, fontSize: 14, borderRadius: 6 }}
         onClick={() => handleMenuAction('detail', record)}
         onMouseEnter={e => e.currentTarget.style.background = '#f0f6ff'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
-        <EyeOutlined style={{ color: '#2563eb' }} /> 详情
+        <span style={{ fontSize: 18 }}>👁️</span> 详情
       </li>
       {record.videoFilePath && (
         <li
@@ -357,7 +215,7 @@ const History = () => {
           onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
-          <PlayCircleOutlined style={{ color: '#10b981' }} /> 视频
+          <span style={{ fontSize: 18 }}>▶️</span> 视频
         </li>
       )}
       <li style={{ height: 1, background: '#f1f5f9', margin: '2px 0' }} />
@@ -367,282 +225,241 @@ const History = () => {
         onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
-        <DeleteOutlined style={{ color: '#ef4444' }} /> 删除
+        <span style={{ fontSize: 18 }}>🗑️</span> 删除
       </li>
     </ul>
   );
 
+  // 能力评估渲染
+  const renderSkillRadar = (skillAssessment) => {
+    if (!skillAssessment) return null;
+    try {
+      const skills = JSON.parse(skillAssessment);
+      if (skills && typeof skills === 'object') {
+        const skillEntries = Object.entries(skills);
+        if (skillEntries.length === 0) return null;
+        return (
+          <div style={{ marginTop: '16px' }}>
+            <Title level={5}>能力评估</Title>
+            {skillEntries.map(([skill, score]) => (
+              <div key={skill} style={{ marginBottom: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <Text>{skill}</Text>
+                  <Text strong>{score}分</Text>
+                </div>
+                <Progress percent={score} color={score >= 80 ? '#22c55e' : score >= 60 ? '#faad14' : '#ef4444'} showInfo={false} />
+              </div>
+            ))}
+          </div>
+        );
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // 改进建议渲染
+  const renderImprovementSuggestions = (suggestions) => {
+    if (!suggestions) return null;
+    try {
+      const data = JSON.parse(suggestions);
+      let suggestionsList = [];
+      if (data.建议 && Array.isArray(data.建议)) {
+        suggestionsList = data.建议;
+      } else if (data.suggestions && Array.isArray(data.suggestions)) {
+        suggestionsList = data.suggestions;
+      } else if (data.advice && Array.isArray(data.advice)) {
+        suggestionsList = data.advice;
+      } else if (Array.isArray(data)) {
+        suggestionsList = data;
+      } else {
+        suggestionsList = [];
+      }
+      suggestionsList = suggestionsList.map(item => typeof item === 'string' ? item : String(item));
+      if (suggestionsList.length === 0) return null;
+      return (
+        <div style={{ marginTop: '16px' }}>
+          <Title level={5}>改进建议</Title>
+          <ul style={{ paddingLeft: 18 }}>
+            {suggestionsList.map((item, index) => (
+              <li key={index} style={{ color: '#475569', fontSize: 15, marginBottom: 4 }}>{index + 1}. {item}</li>
+            ))}
+          </ul>
+        </div>
+      );
+    } catch (e) {
+      return null;
+    }
+  };
+
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f8fafc' }}>
-      <Header style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        background: '#fff',
-        padding: '0 32px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        borderBottom: '1px solid #e2e8f0',
-        height: '64px',
-        overflow: 'hidden'
+    <div className="history-root" style={{ minHeight: '100vh', background: '#f8fafc' }}>
+      <Toast message={toast.message} type={toast.type} visible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
+      {loading && <Loading />}
+      <div className="history-header" style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: '#fff', padding: '0 32px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        borderBottom: '1px solid #e2e8f0', height: '64px', overflow: 'hidden'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ 
-            width: '40px', 
-            height: '40px', 
-            borderRadius: '12px',
+          <div style={{
+            width: '40px', height: '40px', borderRadius: '12px',
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '20px',
-            color: '#fff'
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '20px', color: '#fff'
           }}>
-            <HistoryOutlined />
+            <span role="img" aria-label="history">🕑</span>
           </div>
-          <Title level={3} style={{ margin: 0, color: '#1e293b', fontWeight: 600 }}>
-            面试历史记录
-          </Title>
+          <Title level={3} style={{ margin: 0 }}>面试历史记录</Title>
         </div>
-        
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '16px',
-          flexShrink: 0
-        }}>
-          <Button
-            type="text"
-            icon={<ArrowLeftOutlined />}
-            onClick={handleBackToInterviewTypes}
-            className="history-back-btn"
-            style={{
-              height: '40px',
-              padding: '0 20px',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 500,
-              color: '#64748b',
-              border: '1px solid #e2e8f0',
-              background: '#fff',
-              transition: 'all 0.3s ease',
-              minWidth: '100px',
-              flexShrink: 0
-            }}
-          >
-            返回
-          </Button>
-          
-          <Button
-            danger
-            onClick={handleLogout}
-            className="history-logout-btn"
-            style={{
-              height: '40px',
-              padding: '0 24px',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 500,
-              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-              border: 'none',
-              boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)',
-              transition: 'all 0.3s ease',
-              minWidth: '100px',
-              flexShrink: 0
-            }}
-          >
-            退出登录
-          </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Button type="text" onClick={handleBackToInterviewTypes}>⬅️ 返回</Button>
+          <Button danger onClick={handleLogout}>退出登录</Button>
         </div>
-      </Header>
-
-      <Content style={{ padding: '24px' }}>
+      </div>
+      <div className="history-content" style={{ padding: '24px' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <Title level={2} style={{ color: '#1e293b', marginBottom: '8px' }}>
-              我的面试记录
-            </Title>
+            <Title level={2}>我的面试记录</Title>
             <Text type="secondary" style={{ fontSize: '16px' }}>
               查看您的面试历史和AI评测报告
             </Text>
           </div>
-
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '60px 0' }}>
-              <Spin size="large" />
-              <div style={{ marginTop: '16px' }}>
-                <Text type="secondary">加载中...</Text>
-              </div>
-            </div>
-          ) : records.length === 0 ? (
-            <Empty
-              description="暂无面试记录"
-              style={{ marginTop: '60px' }}
-            >
-              <Button type="primary" onClick={() => navigate('/interview-types')}>
-                开始第一次面试
-              </Button>
-            </Empty>
+          {records.length === 0 ? (
+            <EmptyState text="暂无面试记录" buttonText="开始第一次面试" onButtonClick={() => navigate('/interview-types')} />
           ) : (
-            <List
-              grid={{ gutter: 16, xs: 1, sm: 1, md: 1, lg: 1, xl: 1, xxl: 1 }}
-              dataSource={records}
-              renderItem={(record) => (
-                <List.Item>
-                  <Card
-                    hoverable
-                    style={{ 
-                      borderRadius: '16px',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                      border: '1px solid #e2e8f0',
-                      marginBottom: '16px'
-                    }}
-                    bodyStyle={{ padding: '24px' }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                          <Title level={4} style={{ margin: 0, color: '#1e293b', fontWeight: 600 }}>
-                            {record.position}
-                          </Title>
-                          <Tag color={getStatusColor(record.status)} style={{ fontSize: '12px', padding: '4px 8px' }}>
-                            {getStatusText(record.status)}
-                          </Tag>
-                        </div>
-                      </div>
-
-                      <div style={{ position: 'relative', display: 'inline-block' }}>
-                        <button
-                          onClick={() => setOpenMenuId(openMenuId === record.id ? null : record.id)}
-                          style={{
-                            height: 32,
-                            width: 32,
-                            borderRadius: 8,
-                            backgroundColor: '#f1f5f9',
-                            border: '1px solid #e2e8f0',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s',
-                            cursor: 'pointer',
-                            outline: 'none',
-                            padding: 0
-                          }}
-                        >
-                          <MoreOutlined style={{ fontSize: 18, color: '#475569' }} />
-                        </button>
-                        {openMenuId === record.id && renderCustomMenu(record)}
+            <div>
+              {records.map((record) => (
+                <Card key={record.id}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                        <Title level={4} style={{ margin: 0 }}>{record.position}</Title>
+                        <Tag color={getStatusColor(record.status)}>{getStatusText(record.status)}</Tag>
                       </div>
                     </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <button
+                        onClick={() => setOpenMenuId(openMenuId === record.id ? null : record.id)}
+                        style={{
+                          height: 32,
+                          width: 32,
+                          borderRadius: 8,
+                          backgroundColor: '#f1f5f9',
+                          border: '1px solid #e2e8f0',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s',
+                          cursor: 'pointer',
+                          outline: 'none',
+                          padding: 0
+                        }}
+                      >
+                        <span style={{ fontSize: 18, color: '#475569' }}>⋯</span>
+                      </button>
+                      {openMenuId === record.id && renderCustomMenu(record)}
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '16px', color: '#64748b' }}>⏰</span>
+                      <div>
+                        <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>开始时间</Text>
+                        <Text style={{ fontSize: '14px', color: '#475569', fontWeight: 500 }}>
+                          {formatDateTime(record.startTime)}
+                        </Text>
+                      </div>
+                    </div>
+                    {record.duration && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <ClockCircleOutlined style={{ color: '#64748b', fontSize: '16px' }} />
+                        <span style={{ fontSize: '16px', color: '#64748b' }}>⏰</span>
                         <div>
-                          <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>开始时间</Text>
+                          <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>面试时长</Text>
                           <Text style={{ fontSize: '14px', color: '#475569', fontWeight: 500 }}>
-                            {formatDateTime(record.startTime)}
+                            {formatDuration(record.duration)}
                           </Text>
                         </div>
                       </div>
-                      
-                      {record.duration && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <ClockCircleOutlined style={{ color: '#64748b', fontSize: '16px' }} />
-                          <div>
-                            <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>面试时长</Text>
-                            <Text style={{ fontSize: '14px', color: '#475569', fontWeight: 500 }}>
-                              {formatDuration(record.duration)}
-                            </Text>
-                          </div>
+                    )}
+                    {record.overallScore && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '16px', color: '#f59e0b' }}>🏆</span>
+                        <div>
+                          <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>总分</Text>
+                          <Text strong style={{ fontSize: '16px', color: '#f59e0b', fontWeight: 600 }}>
+                            {record.overallScore}分
+                          </Text>
                         </div>
-                      )}
-                      
-                      {record.overallScore && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <TrophyOutlined style={{ color: '#f59e0b', fontSize: '16px' }} />
-                          <div>
-                            <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>总分</Text>
-                            <Text strong style={{ fontSize: '16px', color: '#f59e0b', fontWeight: 600 }}>
-                              {record.overallScore}分
-                            </Text>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {record.overallFeedback && (
-                      <div style={{ 
-                        background: '#f8fafc', 
-                        padding: '16px', 
-                        borderRadius: '12px',
-                        border: '1px solid #e2e8f0'
-                      }}>
-                        <Text style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6' }}>
-                          {record.overallFeedback}
-                        </Text>
                       </div>
                     )}
-                  </Card>
-                </List.Item>
-              )}
-            />
+                  </div>
+                  {record.overallFeedback && (
+                    <div style={{
+                      background: '#f8fafc',
+                      padding: '16px',
+                      borderRadius: '12px',
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      <Text style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6' }}>
+                        {record.overallFeedback}
+                      </Text>
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
           )}
         </div>
-      </Content>
-
-      {/* 详情模态框 */}
-      <Modal
-        title="面试详情"
-        open={detailModalVisible}
-        onCancel={() => setDetailModalVisible(false)}
-        footer={null}
-        width={800}
-      >
-        {selectedRecord && (
-          <div>
-            <Descriptions column={2} bordered>
-              <Descriptions.Item label="面试类型">{selectedRecord.interviewType}</Descriptions.Item>
-              <Descriptions.Item label="岗位">{selectedRecord.position}</Descriptions.Item>
-              <Descriptions.Item label="开始时间">
-                {selectedRecord.startTime ? new Date(selectedRecord.startTime).toLocaleString() : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="结束时间">
-                {selectedRecord.endTime ? new Date(selectedRecord.endTime).toLocaleString() : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="时长">
-                {selectedRecord.duration ? `${selectedRecord.duration}分钟` : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="状态">{selectedRecord.status}</Descriptions.Item>
-              <Descriptions.Item label="总体评分">
-                {selectedRecord.overallScore ? `${selectedRecord.overallScore}分` : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="AI模型">{selectedRecord.aiModel || '-'}</Descriptions.Item>
-            </Descriptions>
-            
-            {selectedRecord.overallFeedback && (
-              <div style={{ marginTop: '24px' }}>
-                <Title level={5}>总体反馈</Title>
-                <Paragraph>{selectedRecord.overallFeedback}</Paragraph>
+        <CustomDeleteModal
+          visible={deleteModalVisible}
+          onConfirm={confirmDeleteRecord}
+          onCancel={cancelDeleteRecord}
+          record={deleteRecord}
+        />
+        {/* 详情模态框 */}
+        <Modal
+          visible={detailModalVisible}
+          title="面试详情"
+          onOk={() => setDetailModalVisible(false)}
+          onCancel={() => setDetailModalVisible(false)}
+          okText="关闭"
+          cancelText={null}
+        >
+          {selectedRecord && (
+            <div>
+              <div className="custom-descriptions" style={{ marginBottom: 18 }}>
+                <div className="desc-row"><span className="desc-label">面试类型</span><span>{selectedRecord.interviewType}</span></div>
+                <div className="desc-row"><span className="desc-label">岗位</span><span>{selectedRecord.position}</span></div>
+                <div className="desc-row"><span className="desc-label">开始时间</span><span>{selectedRecord.startTime ? new Date(selectedRecord.startTime).toLocaleString() : '-'}</span></div>
+                <div className="desc-row"><span className="desc-label">结束时间</span><span>{selectedRecord.endTime ? new Date(selectedRecord.endTime).toLocaleString() : '-'}</span></div>
+                <div className="desc-row"><span className="desc-label">时长</span><span>{selectedRecord.duration ? `${selectedRecord.duration}分钟` : '-'}</span></div>
+                <div className="desc-row"><span className="desc-label">状态</span><span>{getStatusText(selectedRecord.status)}</span></div>
+                <div className="desc-row"><span className="desc-label">总体评分</span><span>{selectedRecord.overallScore ? `${selectedRecord.overallScore}分` : '-'}</span></div>
               </div>
-            )}
-            
-            {selectedRecord.videoFilePath && selectedRecord.videoFilePath.trim() !== '' && (
-              <div style={{ marginTop: '24px' }}>
-                <Title level={5}>面试视频</Title>
-                <Button 
-                  type="primary" 
-                  icon={<PlayCircleOutlined />}
-                  onClick={() => window.open(selectedRecord.videoFilePath, '_blank')}
-                >
-                  观看完整视频
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
-    </Layout>
+              {selectedRecord.overallFeedback && (
+                <div style={{ marginTop: '24px' }}>
+                  <Title level={5}>总体反馈</Title>
+                  <Paragraph>{selectedRecord.overallFeedback}</Paragraph>
+                </div>
+              )}
+              {selectedRecord.videoFilePath && selectedRecord.videoFilePath.trim() !== '' && (
+                <div style={{ marginTop: '24px' }}>
+                  <Title level={5}>面试视频</Title>
+                  <Button type="primary" onClick={() => window.open(selectedRecord.videoFilePath, '_blank')}>
+                    ▶️ 观看完整视频
+                  </Button>
+                </div>
+              )}
+              {renderSkillRadar(selectedRecord.skillAssessment)}
+              {renderImprovementSuggestions(selectedRecord.improvementSuggestions)}
+            </div>
+          )}
+        </Modal>
+      </div>
+    </div>
   );
 };
 

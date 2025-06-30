@@ -2,15 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  Card, 
-  Button, 
-  Typography, 
-  Space, 
   Layout,
   Menu,
   message,
   Divider,
-  Tag,
   Row,
   Col,
   Modal,
@@ -37,8 +32,12 @@ import {
   StarOutlined
 } from '@ant-design/icons';
 import { removeToken } from '../utils/auth';
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
+import Tag from '../components/ui/Tag';
+import { Title, Text, Paragraph } from '../components/ui/Typography';
+import Toast from '../components/ui/Toast';
 
-const { Title, Text, Paragraph } = Typography;
 const { Header, Content } = Layout;
 
 // 添加自定义样式
@@ -98,9 +97,7 @@ const interviewTypes = [
         title: "AI工程师",
         description: "专注于机器学习、深度学习、自然语言处理等技术",
         skills: ["机器学习", "深度学习", "Python", "TensorFlow", "自然语言处理"],
-        aiModel: "GPT-4 + Claude",
         difficulty: "高级",
-        salary: "25k-50k",
         demand: "高"
       },
       {
@@ -108,9 +105,7 @@ const interviewTypes = [
         title: "AI研究员",
         description: "专注于前沿AI算法研究和创新",
         skills: ["算法研究", "论文阅读", "数学基础", "创新思维", "实验设计"],
-        aiModel: "Claude + GPT-4",
         difficulty: "专家级",
-        salary: "35k-80k",
         demand: "极高"
       }
     ]
@@ -126,9 +121,7 @@ const interviewTypes = [
         title: "数据工程师",
         description: "专注于数据处理、ETL、数据仓库等技术",
         skills: ["SQL", "Python", "Spark", "Hadoop", "数据建模"],
-        aiModel: "Claude + GPT-4",
         difficulty: "中级",
-        salary: "20k-40k",
         demand: "高"
       },
       {
@@ -136,9 +129,7 @@ const interviewTypes = [
         title: "数据科学家",
         description: "专注于数据分析、统计建模、商业智能等",
         skills: ["统计分析", "机器学习", "数据可视化", "商业分析", "R/Python"],
-        aiModel: "GPT-4 + Claude",
         difficulty: "高级",
-        salary: "25k-60k",
         demand: "极高"
       }
     ]
@@ -154,9 +145,7 @@ const interviewTypes = [
         title: "物联网工程师",
         description: "专注于传感器、嵌入式系统、IoT平台开发",
         skills: ["嵌入式开发", "传感器技术", "IoT协议", "硬件设计", "云平台"],
-        aiModel: "Claude + GPT-4",
         difficulty: "中级",
-        salary: "18k-35k",
         demand: "中"
       },
       {
@@ -164,9 +153,7 @@ const interviewTypes = [
         title: "IoT架构师",
         description: "专注于IoT系统架构设计和优化",
         skills: ["系统架构", "物联网协议", "安全设计", "性能优化", "技术选型"],
-        aiModel: "GPT-4 + Claude",
         difficulty: "高级",
-        salary: "30k-60k",
         demand: "高"
       }
     ]
@@ -182,9 +169,7 @@ const interviewTypes = [
         title: "系统工程师",
         description: "专注于系统设计、性能优化、架构规划",
         skills: ["系统设计", "性能优化", "架构规划", "技术选型", "团队协作"],
-        aiModel: "Claude + GPT-4",
         difficulty: "高级",
-        salary: "25k-50k",
         demand: "高"
       },
       {
@@ -192,9 +177,7 @@ const interviewTypes = [
         title: "DevOps工程师",
         description: "专注于自动化部署、监控、运维",
         skills: ["Docker", "Kubernetes", "CI/CD", "监控告警", "自动化运维"],
-        aiModel: "GPT-4 + Claude",
         difficulty: "中级",
-        salary: "20k-45k",
         demand: "高"
       }
     ]
@@ -210,9 +193,7 @@ const interviewTypes = [
         title: "产品经理",
         description: "专注于产品规划、需求分析、用户体验",
         skills: ["产品规划", "需求分析", "用户体验", "数据分析", "项目管理"],
-        aiModel: "Claude + GPT-4",
         difficulty: "中级",
-        salary: "20k-40k",
         demand: "高"
       },
       {
@@ -220,9 +201,7 @@ const interviewTypes = [
         title: "技术产品经理",
         description: "专注于技术产品规划和团队协作",
         skills: ["技术理解", "产品规划", "团队协作", "技术选型", "项目管理"],
-        aiModel: "GPT-4 + Claude",
         difficulty: "高级",
-        salary: "25k-55k",
         demand: "高"
       }
     ]
@@ -572,15 +551,6 @@ const InterviewTypes = () => {
                             </Tag>
                           )}
                         </div>
-                      </div>
-
-                      <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={{ fontSize: '12px', color: '#64748b' }}>
-                          {position.aiModel}
-                        </Text>
-                        <Text style={{ fontSize: '12px', color: '#f59e0b' }}>
-                          {position.salary}
-                        </Text>
                       </div>
 
                       {selectedPosition?.type === position.type && (

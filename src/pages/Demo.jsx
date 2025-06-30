@@ -1,8 +1,11 @@
 import React from 'react';
-import { Card, Button, Typography, Layout } from 'antd';
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
+import { Title, Text, Paragraph } from '../components/ui/Typography';
+import Toast from '../components/ui/Toast';
+import { Layout } from 'antd';
 import { VideoCameraOutlined, AudioOutlined, SettingOutlined } from '@ant-design/icons';
 
-const { Title } = Typography;
 const { Header, Content } = Layout;
 
 const Demo = () => {

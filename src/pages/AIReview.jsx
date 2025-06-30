@@ -1,15 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  Card, 
-  Button, 
-  Typography, 
-  Space, 
   Layout,
   Menu,
   message,
   Progress,
-  Tag,
   Row,
   Col,
   Divider,
@@ -18,21 +13,17 @@ import {
   Spin
 } from 'antd';
 import { 
-  HistoryOutlined,
-  DownloadOutlined,
   ArrowLeftOutlined,
   TrophyOutlined,
-  BulbOutlined,
-  TargetOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
   LogoutOutlined
 } from '@ant-design/icons';
 import { removeToken } from '../utils/auth';
 import { getInterviewRecord } from '../api';
-
-const { Title, Text, Paragraph } = Typography;
-const { Header, Content } = Layout;
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
+import Tag from '../components/ui/Tag';
+import { Title, Text, Paragraph } from '../components/ui/Typography';
+import Toast from '../components/ui/Toast';
 
 // 能力雷达图组件（简化版，实际项目中可以使用ECharts等库）
 const SkillRadarChart = ({ skillData }) => {
@@ -197,7 +188,7 @@ const ImprovementSuggestions = ({ suggestions }) => {
         renderItem={(item, index) => (
           <List.Item>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-              <CheckCircleOutlined style={{ color: '#52c41a', marginTop: '2px' }} />
+              <Tag color="success">✔</Tag>
               <Text>{item}</Text>
             </div>
           </List.Item>
@@ -246,13 +237,13 @@ const AIReview = () => {
   const menuItems = [
     {
       key: 'interview',
-      icon: <HistoryOutlined />,
+      icon: <ArrowLeftOutlined />,
       label: '面试类型',
       onClick: () => navigate('/interview-types'),
     },
     {
       key: 'history',
-      icon: <HistoryOutlined />,
+      icon: <ArrowLeftOutlined />,
       label: '历史记录',
       onClick: () => navigate('/history'),
     },
@@ -261,12 +252,6 @@ const AIReview = () => {
   if (loading) {
     return (
       <Layout style={{ minHeight: '100vh', background: '#f8fafc' }}>
-        <Header style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', height: 64 }}>
-          <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-            <TrophyOutlined style={{ color: '#f59e0b', fontSize: 28, marginRight: 12 }} />
-            <Title level={3} style={{ margin: 0, color: '#1e293b', fontWeight: 700 }}>AI面试点评</Title>
-          </div>
-        </Header>
         <div style={{ 
           display: 'flex', 
           justifyContent: 'center', 
@@ -283,12 +268,6 @@ const AIReview = () => {
   if (error) {
     return (
       <Layout style={{ minHeight: '100vh', background: '#f8fafc' }}>
-        <Header style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', height: 64 }}>
-          <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-            <TrophyOutlined style={{ color: '#f59e0b', fontSize: 28, marginRight: 12 }} />
-            <Title level={3} style={{ margin: 0, color: '#1e293b', fontWeight: 700 }}>AI面试点评</Title>
-          </div>
-        </Header>
         <div style={{ 
           display: 'flex', 
           justifyContent: 'center', 
@@ -328,64 +307,13 @@ const AIReview = () => {
 
   return (
     <Layout style={{ minHeight: '100vh', background: '#f8fafc' }}>
-      <Header style={{ 
+      <div style={{ 
         display: 'flex', 
+        justifyContent: 'center', 
         alignItems: 'center', 
-        justifyContent: 'space-between',
-        background: '#fff',
-        padding: '0 32px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-        borderBottom: '1px solid #e2e8f0',
-        height: 64
+        height: 'calc(100vh - 64px)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <TrophyOutlined style={{ color: '#f59e0b', fontSize: 28 }} />
-          <Title level={3} style={{ margin: 0, color: '#1e293b', fontWeight: 700 }}>AI面试点评</Title>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Button
-            type="text"
-            icon={<HistoryOutlined />}
-            onClick={() => navigate('/history')}
-            style={{
-              height: 40,
-              padding: '0 20px',
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 500,
-              color: '#64748b',
-              border: '1px solid #e2e8f0',
-              background: '#fff',
-              transition: 'all 0.3s ease',
-              minWidth: 100
-            }}
-          >
-            历史记录
-          </Button>
-          <Button
-            danger
-            icon={<LogoutOutlined />}
-            onClick={handleLogout}
-            style={{
-              height: 40,
-              padding: '0 24px',
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 500,
-              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-              border: 'none',
-              boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)',
-              transition: 'all 0.3s ease',
-              minWidth: 100
-            }}
-          >
-            退出登录
-          </Button>
-        </div>
-      </Header>
-
-      <Content style={{ padding: '32px 0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <Card style={{ maxWidth: 1200, padding: '32px' }}>
           {/* 页面标题 */}
           <div style={{ textAlign: 'center', marginBottom: '40px' }}>
             <Title level={2} style={{ color: '#1e293b', marginBottom: '16px' }}>
@@ -508,7 +436,7 @@ const AIReview = () => {
             <Button
               type="primary"
               size="large"
-              icon={<DownloadOutlined />}
+              icon={<ArrowLeftOutlined />}
               onClick={handleDownloadReport}
               style={{ 
                 height: '48px', 
@@ -521,8 +449,8 @@ const AIReview = () => {
               下载完整报告
             </Button>
           </div>
-        </div>
-      </Content>
+        </Card>
+      </div>
     </Layout>
   );
 };
