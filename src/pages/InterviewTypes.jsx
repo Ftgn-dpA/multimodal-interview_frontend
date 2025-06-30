@@ -167,7 +167,7 @@ const InterviewTypes = () => {
     try {
       showToast(setToast, `开始${selectedPosition.title}面试`, 'success');
       setTimeout(() => {
-        navigate(`/interview/${selectedPosition.type}`);
+        navigate(`/device-check/${selectedPosition.type}`);
       }, 1000);
     } catch (error) {
       showToast(setToast, '启动面试失败', 'error');

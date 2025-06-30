@@ -8,13 +8,12 @@
     "@testing-library/react": "^13.3.0",
     "@testing-library/user-event": "^13.5.0",
     "antd": "^4.24.0",
-    "axios": "^0.27.2",
+    "axios": "^1.10.0",
     "framer-motion": "^12.19.2",
     "lucide-react": "^0.525.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.3.0",
-    "react-scripts": "5.0.1",
     "tailwind-merge": "^3.3.1",
     "web-vitals": "^2.1.4"
   },
@@ -42,5 +41,8 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:8080"
+  "proxy": "http://localhost:8080",
+  "devDependencies": {
+    "react-scripts": "^5.0.1"
+  }
 }

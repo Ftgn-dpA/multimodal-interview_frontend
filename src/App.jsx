@@ -9,6 +9,7 @@ import History from './pages/History';
 import AIReview from './pages/AIReview';
 import Demo from './pages/Demo';
 import Interview from './pages/Interview';
+import DeviceCheck from './pages/DeviceCheck';
 import { isAuthenticated } from './utils/auth';
 
 // 受保护的路由组件
@@ -61,6 +62,14 @@ const App = () => {
             element={
               <ProtectedRoute>
                 <History />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/device-check/:type" 
+            element={
+              <ProtectedRoute>
+                <DeviceCheck />
               </ProtectedRoute>
             } 
           />
