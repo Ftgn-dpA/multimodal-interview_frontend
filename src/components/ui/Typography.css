@@ -1,0 +1,9 @@
+.custom-title-1 { font-size: 2.2rem; font-weight: 700; color: #1e293b; margin-bottom: 18px; }
+.custom-title-2 { font-size: 1.7rem; font-weight: 600; color: #1e293b; margin-bottom: 14px; }
+.custom-title-3 { font-size: 1.3rem; font-weight: 600; color: #1e293b; margin-bottom: 10px; }
+.custom-title-4 { font-size: 1.1rem; font-weight: 600; color: #1e293b; margin-bottom: 8px; }
+.custom-title-5 { font-size: 1rem; font-weight: 600; color: #1e293b; margin-bottom: 6px; }
+.custom-text { color: #475569; font-size: 15px; }
+.custom-text.secondary { color: #94a3b8; }
+.custom-text.strong { font-weight: 600; }
+.custom-paragraph { color: #475569; font-size: 15px; line-height: 1.7; margin-bottom: 12px; } 

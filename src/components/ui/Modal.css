@@ -1,0 +1,63 @@
+.custom-modal-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.18);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: modal-fade-in 0.2s;
+}
+.custom-modal {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  min-width: 320px;
+  max-width: 90vw;
+  padding: 32px 32px 24px 32px;
+  text-align: center;
+  position: relative;
+  animation: modal-fade-in 0.2s;
+}
+.custom-modal-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 18px;
+  color: #1e293b;
+}
+.custom-modal-content {
+  font-size: 16px;
+  color: #475569;
+  margin-bottom: 28px;
+}
+.custom-modal-footer {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+}
+.custom-btn {
+  min-width: 90px;
+  border-radius: 8px;
+  padding: 8px 0;
+  font-size: 15px;
+  font-weight: 500;
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.custom-btn:hover {
+  background: #e0e7ef;
+}
+.custom-btn.primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #fff;
+}
+.custom-btn.primary:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+}
+@keyframes modal-fade-in {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+} 
