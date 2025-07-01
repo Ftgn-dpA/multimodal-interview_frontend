@@ -129,14 +129,14 @@ const History = () => {
     }
   };
 
-  const formatDuration = (minutes) => {
-    if (!minutes) return '未知';
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours > 0) {
-      return `${hours}小时${mins}分钟`;
-    }
-    return `${mins}分钟`;
+  const formatDurationFull = (startTime, endTime) => {
+    if (!startTime || !endTime) return '未知';
+    const seconds = Math.floor((new Date(endTime) - new Date(startTime)) / 1000);
+    if (isNaN(seconds) || seconds < 0) return '未知';
+    const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+    const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
   };
 
   const formatDateTime = (dateTime) => {
@@ -380,7 +380,7 @@ const History = () => {
                         <div>
                           <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>面试时长</Text>
                           <Text style={{ fontSize: '14px', color: '#475569', fontWeight: 500 }}>
-                            {formatDuration(record.duration)}
+                            {formatDurationFull(record.startTime, record.endTime)}
                           </Text>
                         </div>
                       </div>
@@ -436,7 +436,7 @@ const History = () => {
                 <div className="desc-row"><span className="desc-label">岗位</span><span>{selectedRecord.position}</span></div>
                 <div className="desc-row"><span className="desc-label">开始时间</span><span>{selectedRecord.startTime ? new Date(selectedRecord.startTime).toLocaleString() : '-'}</span></div>
                 <div className="desc-row"><span className="desc-label">结束时间</span><span>{selectedRecord.endTime ? new Date(selectedRecord.endTime).toLocaleString() : '-'}</span></div>
-                <div className="desc-row"><span className="desc-label">时长</span><span>{selectedRecord.duration ? `${selectedRecord.duration}分钟` : '-'}</span></div>
+                <div className="desc-row"><span className="desc-label">时长</span><span>{formatDurationFull(selectedRecord.startTime, selectedRecord.endTime)}</span></div>
                 <div className="desc-row"><span className="desc-label">状态</span><span>{getStatusText(selectedRecord.status)}</span></div>
                 <div className="desc-row"><span className="desc-label">总体评分</span><span>{selectedRecord.overallScore ? `${selectedRecord.overallScore}分` : '-'}</span></div>
               </div>

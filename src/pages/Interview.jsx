@@ -51,7 +51,7 @@ const UserVideoPiP = ({ stream }) => {
 const Interview = () => {
   const navigate = useNavigate();
   const { type } = useParams();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
   const [question, setQuestion] = useState('');
   const [recordId, setRecordId] = useState(null);
@@ -60,43 +60,77 @@ const Interview = () => {
   const [userStream, setUserStream] = useState(null);
   const [endModalVisible, setEndModalVisible] = useState(false);
   const [exitModalVisible, setExitModalVisible] = useState(false);
+  const [interviewSeconds, setInterviewSeconds] = useState(0);
+  const timerRef = useRef(null);
 
-  // 页面加载时直接打开摄像头，不产生记录
+  // 页面加载时直接打开摄像头，并创建面试记录
   useEffect(() => {
     let isMounted = true;
+    // 1. 打开摄像头
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then(stream => { if (isMounted) setUserStream(stream); })
       .catch(() => { if (isMounted) setUserStream(null); });
+    // 2. 创建面试记录
+    (async () => {
+      try {
+        const res = await startInterview(type);
+        if (!isMounted) return;
+        setQuestion(res.data.question);
+        setRecordId(res.data.recordId);
+        setInterviewInfo({ position: res.data.position, aiModel: res.data.aiModel });
+      } catch (e) {
+        showToast('面试初始化失败', 'error');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    })();
+    // 3. 启动计时器
+    timerRef.current = setInterval(() => {
+      setInterviewSeconds(sec => sec + 1);
+    }, 1000);
     return () => {
       if (userStream) {
         userStream.getTracks().forEach(track => track.stop());
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
       }
       isMounted = false;
     };
     // eslint-disable-next-line
   }, []);
 
+  // 格式化时间
+  const formatTime = (seconds) => {
+    const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+    const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  };
+
   const showToast = (message, type = 'info') => {
     setToast({ visible: true, message, type });
   };
 
-  // 只有点击"提交并结束面试"时才产生记录
+  // 结束面试
   const handleEndInterview = async () => {
     setLoading(true);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
     try {
-      // 先创建面试记录
-      const res = await startInterview(type);
-      setQuestion(res.data.question);
-      setRecordId(res.data.recordId);
-      setInterviewInfo({ position: res.data.position, aiModel: res.data.aiModel });
-      // 立即结束面试
-      await endInterview(res.data.recordId);
+      if (!recordId) {
+        showToast('面试记录未初始化', 'error');
+        setLoading(false);
+        return;
+      }
+      await endInterview(recordId);
       showToast('面试已结束', 'success');
       if (userStream) {
         userStream.getTracks().forEach(track => track.stop());
         await new Promise(resolve => setTimeout(resolve, 50));
       }
-      navigate(`/ai-review/${res.data.recordId}`);
+      navigate(`/ai-review/${recordId}`);
     } catch (e) {
       showToast('结束面试失败', 'error');
     } finally {
@@ -105,6 +139,9 @@ const Interview = () => {
   };
 
   const handleExitInterview = async () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
     if (userStream) {
       userStream.getTracks().forEach(track => track.stop());
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -139,11 +176,25 @@ const Interview = () => {
           <Title level={3} style={{ margin: 0 }}>AI面试模拟器</Title>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{
+            background: '#f1f5f9',
+            color: '#334155',
+            borderRadius: 8,
+            padding: '0 18px',
+            height: 36,
+            display: 'flex',
+            alignItems: 'center',
+            fontWeight: 500,
+            fontSize: 16,
+            letterSpacing: 1,
+          }}>
+            面试时长：{formatTime(interviewSeconds)}
+          </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#64748b', cursor: 'pointer' }}>
             <input type="checkbox" checked={showSubtitle} onChange={e => setShowSubtitle(e.target.checked)} style={{ accentColor: '#3b82f6', width: 16, height: 16 }} />
             显示AI字幕
           </label>
-          <Button type="primary" style={{ height: 40, minWidth: 120, padding: '0 24px', borderRadius: 8, fontSize: 14, fontWeight: 500 }} onClick={() => setEndModalVisible(true)}>提交并结束面试</Button>
+          <Button type="primary" style={{ height: 40, minWidth: 120, padding: '0 24px', borderRadius: 8, fontSize: 14, fontWeight: 500 }} onClick={() => setEndModalVisible(true)} disabled={loading || !recordId}>提交并结束面试</Button>
           <Button danger style={{ height: 40, minWidth: 120, padding: '0 24px', borderRadius: 8, fontSize: 14, fontWeight: 500 }} onClick={() => setExitModalVisible(true)}>直接退出面试</Button>
         </div>
       </div>

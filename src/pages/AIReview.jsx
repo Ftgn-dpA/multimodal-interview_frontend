@@ -155,6 +155,23 @@ const ImprovementSuggestions = ({ suggestions }) => {
   );
 };
 
+// 工具函数：格式化时长
+const formatDuration = (startTime, endTime) => {
+  if (!startTime || !endTime) return '未知';
+  const seconds = Math.floor((new Date(endTime) - new Date(startTime)) / 1000);
+  if (isNaN(seconds) || seconds < 0) return '未知';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) {
+    return `${h}小时${m}分${s}秒`;
+  } else if (m > 0) {
+    return `${m}分${s}秒`;
+  } else {
+    return `${s}秒`;
+  }
+};
+
 const AIReview = () => {
   const { recordId } = useParams();
   const navigate = useNavigate();
@@ -269,7 +286,7 @@ const AIReview = () => {
               </div>
               <div style={{ flex: 1, minWidth: 180 }}>
                 <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>面试时长</div>
-                <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 22 }}>{interviewData.duration || 0} <span style={{ fontSize: 15, color: '#64748b', fontWeight: 400 }}>分钟</span></div>
+                <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 22 }}>{formatDuration(interviewData.startTime, interviewData.endTime)}</div>
               </div>
               <div style={{ flex: 1, minWidth: 180 }}>
                 <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>AI模型</div>
