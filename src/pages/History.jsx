@@ -46,6 +46,7 @@ const History = () => {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteRecord, setDeleteRecord] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState(null);
 
   useEffect(() => {
     fetchHistory();
@@ -98,17 +99,8 @@ const History = () => {
     navigate('/interview-types');
   };
 
-  const handleViewDetail = async (record) => {
-    try {
-      setLoading(true);
-      const response = await getInterviewRecord(record.id);
-      setSelectedRecord(response.data);
-      setDetailModalVisible(true);
-    } catch (error) {
-      showToast('获取详情失败', 'error');
-    } finally {
-      setLoading(false);
-    }
+  const handleViewDetail = (record) => {
+    navigate(`/ai-review/${record.id}`);
   };
 
   const getStatusColor = (status) => {
@@ -171,10 +163,10 @@ const History = () => {
 
   // 菜单项点击
   const handleMenuAction = (key, record) => {
-    if (key === 'detail') {
+    if (key === 'video') {
+      setVideoPreviewUrl(record.videoFilePath);
+    } else if (key === 'detail') {
       handleViewDetail(record);
-    } else if (key === 'video') {
-      window.open(record.videoFilePath, '_blank');
     } else if (key === 'delete') {
       handleDeleteRecord(record);
     }
@@ -420,45 +412,28 @@ const History = () => {
           onCancel={cancelDeleteRecord}
           record={deleteRecord}
         />
-        {/* 详情模态框 */}
-        <Modal
-          visible={detailModalVisible}
-          title="面试详情"
-          onOk={() => setDetailModalVisible(false)}
-          onCancel={() => setDetailModalVisible(false)}
-          okText="关闭"
-          cancelText={null}
-        >
-          {selectedRecord && (
-            <div>
-              <div className="custom-descriptions" style={{ marginBottom: 18 }}>
-                <div className="desc-row"><span className="desc-label">面试类型</span><span>{selectedRecord.interviewType}</span></div>
-                <div className="desc-row"><span className="desc-label">岗位</span><span>{selectedRecord.position}</span></div>
-                <div className="desc-row"><span className="desc-label">开始时间</span><span>{selectedRecord.startTime ? new Date(selectedRecord.startTime).toLocaleString() : '-'}</span></div>
-                <div className="desc-row"><span className="desc-label">结束时间</span><span>{selectedRecord.endTime ? new Date(selectedRecord.endTime).toLocaleString() : '-'}</span></div>
-                <div className="desc-row"><span className="desc-label">时长</span><span>{formatDurationFull(selectedRecord.startTime, selectedRecord.endTime)}</span></div>
-                <div className="desc-row"><span className="desc-label">状态</span><span>{getStatusText(selectedRecord.status)}</span></div>
-                <div className="desc-row"><span className="desc-label">总体评分</span><span>{selectedRecord.overallScore ? `${selectedRecord.overallScore}分` : '-'}</span></div>
-              </div>
-              {selectedRecord.overallFeedback && (
-                <div style={{ marginTop: '24px' }}>
-                  <Title level={5}>总体反馈</Title>
-                  <Paragraph>{selectedRecord.overallFeedback}</Paragraph>
-                </div>
-              )}
-              {selectedRecord.videoFilePath && selectedRecord.videoFilePath.trim() !== '' && (
-                <div style={{ marginTop: '24px' }}>
-                  <Title level={5}>面试视频</Title>
-                  <Button type="primary" onClick={() => window.open(selectedRecord.videoFilePath, '_blank')}>
-                    ▶️ 观看完整视频
-                  </Button>
-                </div>
-              )}
-              {renderSkillRadar(selectedRecord.skillAssessment)}
-              {renderImprovementSuggestions(selectedRecord.improvementSuggestions)}
+        {/* 视频预览弹窗 */}
+        {videoPreviewUrl && (
+          <div
+            style={{
+              position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh',
+              background: 'rgba(0,0,0,0.45)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}
+            onClick={() => setVideoPreviewUrl(null)}
+          >
+            <div
+              style={{ background: '#fff', padding: 24, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', minWidth: 360, maxWidth: '90vw', maxHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 12, color: '#334155' }}>面试视频回放</div>
+              <video src={videoPreviewUrl} controls style={{ width: 480, maxWidth: '80vw', maxHeight: '60vh', borderRadius: 8, background: '#000' }} />
+              <button
+                onClick={() => setVideoPreviewUrl(null)}
+                style={{ marginTop: 18, padding: '6px 28px', borderRadius: 6, background: '#2563eb', color: '#fff', border: 'none', fontWeight: 500, fontSize: 15, cursor: 'pointer', boxShadow: '0 2px 8px rgba(37,99,235,0.08)' }}
+              >关闭</button>
             </div>
-          )}
-        </Modal>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,22 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Layout,
-  Menu,
-  message,
-  Progress,
-  Row,
-  Col,
-  Divider,
-  List,
-  Statistic,
-  Spin
-} from 'antd';
-import { 
-  ArrowLeftOutlined,
-  TrophyOutlined,
-  LogoutOutlined
-} from '@ant-design/icons';
 import { removeToken } from '../utils/auth';
 import { getInterviewRecord } from '../api';
 import Button from '../components/ui/Button';
@@ -178,6 +161,12 @@ const AIReview = () => {
   const [loading, setLoading] = useState(true);
   const [interviewData, setInterviewData] = useState(null);
   const [error, setError] = useState(null);
+  // Toast本地state
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
+  // 本地showToast函数
+  const showToast = (message, type = 'info') => {
+    setToast({ visible: true, message, type });
+  };
 
   useEffect(() => {
     if (recordId) {
@@ -193,7 +182,7 @@ const AIReview = () => {
     } catch (error) {
       console.error('加载面试数据失败:', error);
       setError('加载面试数据失败');
-      message.error('加载面试数据失败');
+      showToast('加载面试数据失败', 'error');
     } finally {
       setLoading(false);
     }
@@ -204,20 +193,16 @@ const AIReview = () => {
     navigate('/login');
   };
 
-  const handleDownloadReport = () => {
-    message.info('报告下载功能开发中...');
-  };
-
   const menuItems = [
     {
       key: 'interview',
-      icon: <ArrowLeftOutlined />,
+      icon: '⬅️',
       label: '面试类型',
       onClick: () => navigate('/interview-types'),
     },
     {
       key: 'history',
-      icon: <ArrowLeftOutlined />,
+      icon: '⬅️',
       label: '历史记录',
       onClick: () => navigate('/history'),
     },
@@ -260,7 +245,8 @@ const AIReview = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      <Card style={{ maxWidth: 1200, padding: '32px', margin: '40px auto' }}>
+      <Toast message={toast.message} type={toast.type} visible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
+      <Card id="ai-review-main-card" style={{ maxWidth: 1200, padding: '32px', margin: '40px auto' }}>
         {/* 页面标题 */}
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🏆</div>
@@ -323,9 +309,6 @@ const AIReview = () => {
         <div style={{ textAlign: 'center', marginTop: '40px', padding: '24px', background: '#fff', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'center', gap: '32px' }}>
           <Button size="large" onClick={() => navigate('/interview-types')} style={{ height: '48px', padding: '0 32px', borderRadius: '12px', fontSize: 16, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', fontWeight: 500, transition: 'all 0.3s', minWidth: 160 }}>
             返回主页
-          </Button>
-          <Button type="primary" size="large" onClick={handleDownloadReport} style={{ height: '48px', padding: '0 32px', borderRadius: '12px', fontSize: 16, minWidth: 160 }}>
-            下载完整报告
           </Button>
         </div>
       </Card>

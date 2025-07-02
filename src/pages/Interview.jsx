@@ -11,6 +11,7 @@ import Modal from '../components/ui/Modal';
 import { removeToken } from '../utils/auth';
 import styles from './Interview.module.css';
 import { showToast } from '../utils/toast';
+import MediaRecorderComponent from '../components/MediaRecorder.jsx';
 
 // AI面试官占位视频组件
 const AIInterviewerVideo = ({ showSubtitle, subtitle, children }) => (
@@ -62,6 +63,7 @@ const Interview = () => {
   const [exitModalVisible, setExitModalVisible] = useState(false);
   const [interviewSeconds, setInterviewSeconds] = useState(0);
   const timerRef = useRef(null);
+  const mediaRecorderRef = useRef();
 
   // 页面加载时直接打开摄像头，并创建面试记录
   useEffect(() => {
@@ -100,6 +102,13 @@ const Interview = () => {
     // eslint-disable-next-line
   }, []);
 
+  // 页面加载后，recordId有值时自动开始录制
+  useEffect(() => {
+    if (recordId && mediaRecorderRef.current) {
+      mediaRecorderRef.current.startRecording();
+    }
+  }, [recordId]);
+
   // 格式化时间
   const formatTime = (seconds) => {
     const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
@@ -123,6 +132,9 @@ const Interview = () => {
         showToast('面试记录未初始化', 'error');
         setLoading(false);
         return;
+      }
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stopRecording();
       }
       await endInterview(recordId);
       showToast('面试已结束', 'success');
@@ -204,6 +216,11 @@ const Interview = () => {
           <AIInterviewerVideo showSubtitle={showSubtitle} subtitle={question}>
             <UserVideoPiP stream={userStream} />
           </AIInterviewerVideo>
+          <MediaRecorderComponent
+            ref={mediaRecorderRef}
+            recordId={recordId}
+            uploadUrl="/api/interview/upload-video"
+          />
         </div>
       </div>
       {/* 结束面试确认弹窗 */}

@@ -531,4 +531,30 @@ code {
 
 .ant-progress-bg {
   border-radius: 8px;
+}
+
+/* 导出图片时的样式优化 */
+.exporting, .exporting * {
+  box-shadow: none !important;
+  border: none !important;
+  background: #fff !important;
+  background-image: none !important;
+  filter: none !important;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #ai-review-main-card, #ai-review-main-card * {
+    visibility: visible !important;
+  }
+  #ai-review-main-card {
+    position: absolute !important;
+    left: 0; top: 0; width: 100vw; min-height: 100vh; background: #fff !important;
+    box-shadow: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
 } 
