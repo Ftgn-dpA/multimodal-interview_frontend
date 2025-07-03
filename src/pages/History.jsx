@@ -103,28 +103,10 @@ const History = () => {
     navigate(`/ai-review/${record.id}`);
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'COMPLETED': return '#22c55e';
-      case 'IN_PROGRESS': return '#3b82f6';
-      case 'CANCELLED': return '#ef4444';
-      default: return '#64748b';
-    }
-  };
-
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'COMPLETED': return '已完成';
-      case 'IN_PROGRESS': return '进行中';
-      case 'CANCELLED': return '已取消';
-      default: return '未知';
-    }
-  };
-
   const formatDurationFull = (startTime, endTime) => {
-    if (!startTime || !endTime) return '未知';
+    if (!startTime || !endTime) return '';
     const seconds = Math.floor((new Date(endTime) - new Date(startTime)) / 1000);
-    if (isNaN(seconds) || seconds < 0) return '未知';
+    if (isNaN(seconds) || seconds < 0) return '';
     const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
     const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
     const s = String(seconds % 60).padStart(2, '0');
@@ -329,7 +311,6 @@ const History = () => {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                         <Title level={4} style={{ margin: 0 }}>{record.position}</Title>
-                        <Tag color={getStatusColor(record.status)}>{getStatusText(record.status)}</Tag>
                       </div>
                     </div>
                     <div style={{ position: 'relative', display: 'inline-block' }}>

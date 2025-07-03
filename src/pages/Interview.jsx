@@ -67,6 +67,7 @@ const Interview = () => {
 
   // 页面加载时直接打开摄像头，并创建面试记录
   useEffect(() => {
+    console.log('Interview useEffect called', new Date().toISOString());
     let isMounted = true;
     // 1. 打开摄像头
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })

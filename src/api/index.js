@@ -50,10 +50,10 @@ export const interviewAPI = {
   // 获取面试类型列表
   getInterviewTypes: () => api.get('/interview/types'),
   
-  // 开始指定类型的面试
+  // 开始指定类型的面试（返回recordId）
   startInterview: (type) => api.post(`/interview/start/${type}`),
   
-  // 结束面试
+  // 结束面试（传recordId）
   endInterview: (recordId) => api.post(`/interview/end/${recordId}`),
   
   // 上传面试视频
