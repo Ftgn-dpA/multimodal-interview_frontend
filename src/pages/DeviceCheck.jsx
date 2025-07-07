@@ -127,7 +127,7 @@ const DeviceCheck = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="glass-effect" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, visible: false })} />
       <Card style={{ maxWidth: 420, width: '100%', padding: 32, borderRadius: 18, boxShadow: '0 4px 24px rgba(0,0,0,0.10)', border: '1px solid #e2e8f0', background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24 }}>
         <Title level={3} style={{ color: '#1e293b', marginBottom: 8 }}>设备检测</Title>

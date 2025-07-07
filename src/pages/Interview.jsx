@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { startInterview, endInterview } from '../api';
+import { startInterview, endInterview, deleteInterviewRecord } from '../api';
 import Toast from '../components/ui/Toast';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -159,6 +159,13 @@ const Interview = () => {
       userStream.getTracks().forEach(track => track.stop());
       await new Promise(resolve => setTimeout(resolve, 50));
     }
+    if (recordId) {
+      try {
+        await deleteInterviewRecord(recordId);
+      } catch (e) {
+        // 可选：提示删除失败，但不影响跳转
+      }
+    }
     navigate('/interview-types');
   };
 
@@ -168,7 +175,7 @@ const Interview = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+    <div className="glass-effect" style={{ minHeight: '100vh' }}>
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, visible: false })} />
       {loading && <Loading />}
       {/* Header 区域 */}

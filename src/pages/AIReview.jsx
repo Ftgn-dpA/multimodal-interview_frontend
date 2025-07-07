@@ -214,7 +214,7 @@ const AIReview = () => {
 
   if (error) {
     return (
-      <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <Text type="danger" style={{ fontSize: 18, marginBottom: 24 }}>{error}</Text>
         <Button type="primary" size="large" onClick={() => navigate('/interview-types')} style={{ borderRadius: 12, height: 48, fontSize: 16, minWidth: 160 }}>返回面试类型</Button>
       </div>
@@ -244,7 +244,7 @@ const AIReview = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="glass-effect" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
       <Card id="ai-review-main-card" style={{ maxWidth: 1200, padding: '32px', margin: '40px auto' }}>
         {/* 页面标题 */}

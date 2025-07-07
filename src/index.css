@@ -400,11 +400,9 @@ code {
 
 /* 玻璃态效果 */
 .glass-effect {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border: none;
-  border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(6px);
+  transition: all 0.5s ease-in-out;
 }
 
 /* 渐变按钮 */
@@ -557,4 +555,16 @@ code {
   .no-print {
     display: none !important;
   }
+}
+
+/* 全局主内容区毛玻璃背景 */
+.main-glass-bg {
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.main-glass-bg-none {
+  background: transparent;
+  backdrop-filter: none;
+  transition: all 0.5s ease-in-out;
 } 

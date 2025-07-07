@@ -269,7 +269,7 @@ const History = () => {
   };
 
   return (
-    <div className="history-root" style={{ minHeight: '100vh', background: '#f8fafc' }}>
+    <div className="history-root" style={{ minHeight: '100vh', background: 'transparent' }}>
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
       {loading && <Loading />}
       <div className="history-header" style={{

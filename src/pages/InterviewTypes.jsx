@@ -202,8 +202,11 @@ const InterviewTypes = () => {
     }
   };
 
+  // 动态className: 选中岗位时毛玻璃，否则透明
+  const mainClass = selectedPosition ? "glass-effect" : "main-glass-bg-none";
+
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+    <div className={mainClass} style={{ minHeight: '100vh' }}>
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, visible: false })} />
       {/* Header 区域 */}
       <div style={{
@@ -319,7 +322,7 @@ const InterviewTypes = () => {
                 <div key={position.type} style={{ width: '100%' }}>
                   <Card
                     hoverable
-                    style={{ border: selectedPosition?.type === position.type ? `2px solid ${selectedCategory.color}` : '1px solid #e2e8f0', borderRadius: 12, cursor: 'pointer', transition: 'all 0.3s', background: selectedPosition?.type === position.type ? `${selectedCategory.color}10` : '#fff', position: 'relative', width: '100%' }}
+                    style={{ border: selectedPosition?.type === position.type ? `2px solid ${selectedCategory.color}` : '1px solid #e2e8f0', borderRadius: 12, cursor: 'pointer', transition: 'all 0.3s', background: selectedPosition?.type === position.type ? 'rgba(255,255,255,0.85)' : '#fff', backdropFilter: selectedPosition?.type === position.type ? 'blur(8px)' : 'none', color: '#1e293b', position: 'relative', width: '100%' }}
                     onClick={() => handlePositionSelect(position)}
                     bodyStyle={{ padding: 20 }}
                   >
