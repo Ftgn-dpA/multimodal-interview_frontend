@@ -31,21 +31,36 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children }) =>
     } else {
       console.error('【AIInterviewerVideo useEffect】streamInfo为null或undefined！');
     }
+    
     if (streamInfo && streamInfo.streamUrl) {
       // 销毁旧实例
       if (playerRef.current) {
         playerRef.current.stop();
         playerRef.current = null;
       }
+      
       // 创建新实例
       const player = new RTCPlayer();
-      player.playerType = 11; // 明确指定webrtc模式
+      player.playerType = 6; // WebRTC 模式
       player.container = wrapperRef.current;
       player.videoSize = { width: 640, height: 320 };
-      // 某些SDK即使webrtc也需要apiUrl字段
-      const streamParam = { url: streamInfo.streamUrl, apiUrl: streamInfo.apiUrl || '' };
-      console.log('【AIInterviewerVideo useEffect】即将赋值player.stream参数:', streamParam);
-      player.stream = streamParam;
+      
+      // 尝试设置完整的 API URL 路径
+      const fullApiUrl = streamInfo.apiUrl || 'https://rtc-api.xf-yun.com/v1/rtc/play/';
+      console.log('【AIInterviewerVideo useEffect】使用完整API URL:', fullApiUrl);
+      
+      // 设置 stream 参数
+      player.stream = {
+        url: streamInfo.streamUrl,
+        apiUrl: fullApiUrl
+      };
+      
+      // 尝试设置其他可能的配置
+      player.rtcApiUrl = fullApiUrl;
+      player.rtcBaseUrl = 'https://rtc-api.xf-yun.com';
+      
+      console.log('【AIInterviewerVideo useEffect】RTCPlayer配置完成');
+      
       player
         .on('play', () => console.log('sdk event: player play'))
         .on('waiting', () => console.log('sdk event: player waiting'))
@@ -54,12 +69,24 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children }) =>
           setPlayNotAllowed(true);
           console.log('sdk event: play not allowed, muted play');
         })
-        .on('error', err => console.error('sdk event: error', err));
-      player.play();
-      playerRef.current = player;
+        .on('error', err => {
+          console.error('sdk event: error', err);
+          // 如果播放失败，显示错误信息但不中断流程
+          setPlayNotAllowed(true);
+        });
+      
+      try {
+        player.play();
+        playerRef.current = player;
+        console.log('【AIInterviewerVideo useEffect】RTCPlayer开始播放');
+      } catch (error) {
+        console.error('【AIInterviewerVideo useEffect】RTCPlayer播放失败:', error);
+        setPlayNotAllowed(true);
+      }
     } else {
       console.error('streamUrl 无效', streamInfo);
     }
+    
     return () => {
       if (playerRef.current) {
         playerRef.current.stop();
@@ -244,33 +271,82 @@ const Interview = () => {
 
   // 启动avatar会话
   const handleStartAvatar = async () => {
-    const res = await fetch('/api/avatar/start', { method: 'POST' });
-    const text = await res.text();
-    console.log('【handleStartAvatar】后端原始返回:', text);
-    // 假设后端返回json: { sid, streamUrl, ... }
     try {
-      const info = JSON.parse(text);
-      console.log('【handleStartAvatar】解析后:', info);
-      setStreamInfo(info);
-      showToast('虚拟人已启动', 'info');
-    } catch {
+      const res = await fetch('/api/avatar/start', { method: 'POST' });
+      
+      // 检查响应状态
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
+      const text = await res.text();
+      console.log('【handleStartAvatar】后端原始返回:', text);
+      
+      // 检查返回内容是否为空
+      if (!text || text.trim() === '') {
+        throw new Error('后端返回空内容');
+      }
+      
+      // 尝试解析JSON
+      try {
+        const info = JSON.parse(text);
+        console.log('【handleStartAvatar】解析后:', info);
+        
+        // 检查必要字段
+        if (!info.sessionId) {
+          throw new Error('返回数据缺少 sessionId');
+        }
+        
+        if (info.status === 'fail') {
+          throw new Error(info.msg || '启动失败');
+        }
+        
+        setStreamInfo(info);
+        showToast('虚拟人已启动', 'info');
+      } catch (parseError) {
+        console.error('JSON解析失败:', parseError);
+        console.error('原始内容:', text);
+        throw new Error(`JSON解析失败: ${parseError.message}`);
+      }
+    } catch (error) {
+      console.error('启动虚拟人失败:', error);
       setStreamInfo(null);
-      showToast(text, 'info');
+      showToast(`启动虚拟人失败: ${error.message}`, 'error');
     }
   };
   // 发送文本驱动
   const handleSendAvatarText = async () => {
-    if (!avatarInput) return;
-    const res = await fetch(`/api/avatar/send?text=${encodeURIComponent(avatarInput)}`, { method: 'POST' });
-    const text = await res.text();
-    showToast(text, 'info');
+    if (!avatarInput || !streamInfo?.sessionId) {
+      showToast('请输入文本或先启动虚拟人', 'error');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/avatar/send?sessionId=${streamInfo.sessionId}&text=${encodeURIComponent(avatarInput)}`, { method: 'POST' });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        showToast(data.msg, 'info');
+        setAvatarInput(''); // 清空输入框
+      } else {
+        showToast(data.msg, 'error');
+      }
+    } catch (error) {
+      showToast('发送文本失败', 'error');
+    }
   };
   // 关闭avatar会话
   const handleStopAvatar = async () => {
-    const res = await fetch('/api/avatar/stop', { method: 'POST' });
-    const text = await res.text();
-    setStreamInfo(null);
-    showToast(text, 'info');
+    if (!streamInfo?.sessionId) {
+      showToast('无有效会话', 'error');
+      return;
+    }
+    const res = await fetch(`/api/avatar/stop?sessionId=${streamInfo.sessionId}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.status === 'ok') {
+      setStreamInfo(null);
+      showToast(data.msg, 'info');
+    } else {
+      showToast(data.msg, 'error');
+    }
   };
 
   return (

@@ -20,16 +20,28 @@ const MediaRecorderComponent = forwardRef(({ onStop, recordId, uploadUrl }, ref)
       setVideoUrl(URL.createObjectURL(blob));
       if (onStop) onStop(blob);
       if (uploadUrl && recordId) {
-        const token = getToken();
-        const formData = new FormData();
-        formData.append('video', blob, `record_${recordId}.mp4`);
-        await fetch(`${uploadUrl}/${recordId}`, {
-          method: 'POST',
-          body: formData,
-          headers: {
-            Authorization: `Bearer ${token}`
+        try {
+          const token = getToken();
+          const formData = new FormData();
+          formData.append('video', blob, `record_${recordId}.mp4`);
+          const response = await fetch(`${uploadUrl}/${recordId}`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+          
+          if (!response.ok) {
+            console.error('视频上传失败:', response.status, response.statusText);
+            // 不抛出错误，只记录日志，避免中断流程
+          } else {
+            console.log('视频上传成功');
           }
-        });
+        } catch (error) {
+          console.error('视频上传异常:', error);
+          // 不抛出错误，只记录日志，避免中断流程
+        }
       }
       mediaStream.getTracks().forEach(track => track.stop());
     };
