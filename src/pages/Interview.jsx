@@ -32,35 +32,23 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children }) =>
       console.error('【AIInterviewerVideo useEffect】streamInfo为null或undefined！');
     }
     
-    if (streamInfo && streamInfo.streamUrl) {
+    if (streamInfo && streamInfo.streamUrl && streamInfo.sessionId) {
       // 销毁旧实例
       if (playerRef.current) {
         playerRef.current.stop();
         playerRef.current = null;
       }
-      
       // 创建新实例
       const player = new RTCPlayer();
       player.playerType = 6; // WebRTC 模式
       player.container = wrapperRef.current;
-      player.videoSize = { width: 640, height: 320 };
-      
-      // 尝试设置完整的 API URL 路径
-      const fullApiUrl = streamInfo.apiUrl || 'https://rtc-api.xf-yun.com/v1/rtc/play/';
-      console.log('【AIInterviewerVideo useEffect】使用完整API URL:', fullApiUrl);
-      
-      // 设置 stream 参数
+      // 使播放器与外层方框完全一致，16:9比例
+      player.videoSize = { width: 720, height: 405 };
       player.stream = {
-        url: streamInfo.streamUrl,
-        apiUrl: fullApiUrl
+        sid: streamInfo.sessionId,
+        streamUrl: streamInfo.streamUrl
       };
-      
-      // 尝试设置其他可能的配置
-      player.rtcApiUrl = fullApiUrl;
-      player.rtcBaseUrl = 'https://rtc-api.xf-yun.com';
-      
-      console.log('【AIInterviewerVideo useEffect】RTCPlayer配置完成');
-      
+      console.log('【AIInterviewerVideo useEffect】RTCPlayer配置完成', player.stream);
       player
         .on('play', () => console.log('sdk event: player play'))
         .on('waiting', () => console.log('sdk event: player waiting'))
@@ -71,10 +59,8 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children }) =>
         })
         .on('error', err => {
           console.error('sdk event: error', err);
-          // 如果播放失败，显示错误信息但不中断流程
           setPlayNotAllowed(true);
         });
-      
       try {
         player.play();
         playerRef.current = player;
@@ -84,7 +70,7 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children }) =>
         setPlayNotAllowed(true);
       }
     } else {
-      console.error('streamUrl 无效', streamInfo);
+      console.error('streamUrl 或 sessionId 无效', streamInfo);
     }
     
     return () => {
@@ -97,9 +83,23 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children }) =>
 
   return (
     <div className={styles.aiVideo} style={{ position: 'relative' }}>
-      <div id="playerWrapper" ref={wrapperRef} style={{ width: '100%', height: 320, background: '#000', borderRadius: 16 }} />
+      <div
+        id="playerWrapper"
+        ref={wrapperRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          position: 'relative',
+          borderRadius: 24,
+          overflow: 'hidden',
+          background: 'transparent', // 去除黑色背景
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      />
       {playNotAllowed && (
-        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 320, background: 'rgba(0,0,0,0.7)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
           <div>
             <div style={{ fontSize: 24, marginBottom: 12 }}>浏览器限制自动播放，请点击下方按钮恢复</div>
             <button onClick={() => { playerRef.current && playerRef.current.resume(); setPlayNotAllowed(false); }} style={{ fontSize: 18, padding: '8px 24px', borderRadius: 8 }}>点击恢复播放</button>
@@ -107,7 +107,7 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children }) =>
         </div>
       )}
       {(!streamInfo || !streamInfo.streamUrl) && (
-        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 320, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
           <div style={{ fontSize: 110, marginBottom: 10 }}>🤖</div>
           <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: 2 }}>AI面试官</div>
         </div>
@@ -159,6 +159,7 @@ const Interview = () => {
   const mediaRecorderRef = useRef();
   const [streamInfo, setStreamInfo] = useState(null);
   const [avatarInput, setAvatarInput] = useState("");
+  const userVideoRef = useRef(null);
 
   // 页面加载时直接打开摄像头，并创建面试记录
   useEffect(() => {
@@ -349,6 +350,12 @@ const Interview = () => {
     }
   };
 
+  useEffect(() => {
+    if (userVideoRef.current && userStream) {
+      userVideoRef.current.srcObject = userStream;
+    }
+  }, [userStream]);
+
   return (
     <div className="glass-effect" style={{ minHeight: '100vh' }}>
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, visible: false })} />
@@ -396,20 +403,31 @@ const Interview = () => {
       {/* 内容区域 */}
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', minHeight: 'calc(100vh - 64px)', padding: '40px 0' }}>
         <div style={{ width: '100%', maxWidth: 900, position: 'relative' }}>
-          <AIInterviewerVideo showSubtitle={showSubtitle} subtitle={question} streamInfo={streamInfo}>
-            <UserVideoPiP stream={userStream} />
-            <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-              <Button onClick={handleStartAvatar} type="primary">启动虚拟人</Button>
-              <Button onClick={handleStopAvatar} danger>关闭虚拟人</Button>
-              <input value={avatarInput} onChange={e => setAvatarInput(e.target.value)} placeholder="输入给虚拟人的文本" style={{ width: 200, marginLeft: 8 }} />
-              <Button onClick={handleSendAvatarText}>发送文本</Button>
+          {/* 视频区整体容器 */}
+          <div style={{ width: '100%', maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            {/* AI面试官视频 */}
+            <AIInterviewerVideo showSubtitle={showSubtitle} subtitle={question} streamInfo={streamInfo} />
+            {/* 面试者视频，紧贴AI面试官视频下方 */}
+            <div className={styles.userVideoArea} style={{ marginTop: 16 }}>
+              {userStream ? (
+                <video
+                  ref={userVideoRef}
+                  autoPlay
+                  muted
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 24, background: '#000' }}
+                />
+              ) : (
+                <div style={{ color: '#64748b', textAlign: 'center', lineHeight: '120px', fontSize: 18 }}>摄像头未开启</div>
+              )}
             </div>
-          </AIInterviewerVideo>
-          <MediaRecorderComponent
-            ref={mediaRecorderRef}
-            recordId={recordId}
-            uploadUrl="/api/interview/upload-video"
-          />
+          </div>
+          {/* 操作按钮区 */}
+          <div style={{ marginTop: 32, display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <Button onClick={handleStartAvatar} type="primary">启动虚拟人</Button>
+            <Button onClick={handleStopAvatar} danger>关闭虚拟人</Button>
+            <input value={avatarInput} onChange={e => setAvatarInput(e.target.value)} placeholder="输入给虚拟人的文本" style={{ width: 200, marginLeft: 8 }} />
+            <Button onClick={handleSendAvatarText}>发送文本</Button>
+          </div>
         </div>
       </div>
       {/* 结束面试确认弹窗 */}

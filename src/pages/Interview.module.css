@@ -32,6 +32,22 @@
   transition: all 0.3s;
 }
 
+.userVideoArea {
+  width: 100%;
+  max-width: 720px;
+  aspect-ratio: 16/9;
+  min-height: 120px;
+  background: linear-gradient(135deg, #f1f5f9 0%, #dbeafe 100%);
+  border-radius: 20px;
+  margin: 24px auto 0 auto;
+  box-shadow: 0 4px 24px rgba(59,130,246,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
 @media (max-width: 600px) {
   .aiVideo {
     max-width: 100vw;
@@ -44,5 +60,10 @@
     bottom: 2vw;
     right: 2vw;
     border-radius: 8px;
+  }
+  .userVideoArea {
+    max-width: 100vw;
+    border-radius: 8px;
+    min-height: 80px;
   }
 } 
