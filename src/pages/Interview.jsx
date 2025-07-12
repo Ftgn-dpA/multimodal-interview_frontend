@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { startInterview, endInterview, deleteInterviewRecord } from '../api';
+import api from '../api';
 import Toast from '../components/ui/Toast';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -23,16 +24,16 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children }) =>
   useEffect(() => {
     console.log('【AIInterviewerVideo useEffect】streamInfo:', streamInfo);
     if (streamInfo) {
-      console.log('【AIInterviewerVideo useEffect】streamUrl:', streamInfo.streamUrl);
-      console.log('【AIInterviewerVideo useEffect】apiUrl:', streamInfo.apiUrl);
-      if (!streamInfo.streamUrl) {
-        console.error('【AIInterviewerVideo useEffect】streamUrl为空或未定义！', streamInfo);
+      console.log('【AIInterviewerVideo useEffect】stream_url:', streamInfo.stream_url);
+      console.log('【AIInterviewerVideo useEffect】api_url:', streamInfo.api_url);
+      if (!streamInfo.stream_url) {
+        console.error('【AIInterviewerVideo useEffect】stream_url为空或未定义！', streamInfo);
       }
     } else {
       console.error('【AIInterviewerVideo useEffect】streamInfo为null或undefined！');
     }
     
-    if (streamInfo && streamInfo.streamUrl && streamInfo.sessionId) {
+    if (streamInfo && streamInfo.stream_url && streamInfo.session) {
       // 销毁旧实例
       if (playerRef.current) {
         playerRef.current.stop();
@@ -45,8 +46,8 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children }) =>
       // 使播放器与外层方框完全一致，16:9比例
       player.videoSize = { width: 720, height: 405 };
       player.stream = {
-        sid: streamInfo.sessionId,
-        streamUrl: streamInfo.streamUrl
+        sid: streamInfo.session,
+        streamUrl: streamInfo.stream_url
       };
       console.log('【AIInterviewerVideo useEffect】RTCPlayer配置完成', player.stream);
       player
@@ -70,7 +71,7 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children }) =>
         setPlayNotAllowed(true);
       }
     } else {
-      console.error('streamUrl 或 sessionId 无效', streamInfo);
+      console.error('stream_url 或 session 无效', streamInfo);
     }
     
     return () => {
@@ -106,7 +107,7 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children }) =>
           </div>
         </div>
       )}
-      {(!streamInfo || !streamInfo.streamUrl) && (
+      {(!streamInfo || !streamInfo.stream_url) && (
         <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
           <div style={{ fontSize: 110, marginBottom: 10 }}>🤖</div>
           <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: 2 }}>AI面试官</div>
@@ -159,34 +160,80 @@ const Interview = () => {
   const mediaRecorderRef = useRef();
   const [streamInfo, setStreamInfo] = useState(null);
   const [avatarInput, setAvatarInput] = useState("");
+  const [avatarLoading, setAvatarLoading] = useState(false);
   const userVideoRef = useRef(null);
 
-  // 页面加载时直接打开摄像头，并创建面试记录
+  // 页面加载时直接打开摄像头，创建面试记录，并自动启动虚拟人
   useEffect(() => {
     console.log('Interview useEffect called', new Date().toISOString());
     let isMounted = true;
-    // 1. 打开摄像头
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then(stream => { if (isMounted) setUserStream(stream); })
-      .catch(() => { if (isMounted) setUserStream(null); });
-    // 2. 创建面试记录
-    (async () => {
+    
+    const initializeInterview = async () => {
       try {
+        // 1. 打开摄像头
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          if (isMounted) setUserStream(stream);
+        } catch (e) {
+          if (isMounted) setUserStream(null);
+        }
+        
+        // 2. 创建面试记录
         const res = await startInterview(type);
         if (!isMounted) return;
         setQuestion(res.data.question);
         setRecordId(res.data.recordId);
         setInterviewInfo({ position: res.data.position, aiModel: res.data.aiModel });
+        
+        // 3. 自动启动虚拟人
+        if (isMounted) {
+          setAvatarLoading(true);
+          try {
+            console.log('【自动启动虚拟人】开始调用后端接口');
+            const avatarRes = await api.post('/avatar/start');
+            console.log('【自动启动虚拟人】后端原始返回:', avatarRes.data);
+            
+            const info = avatarRes.data;
+            
+            // 检查必要字段
+            if (!info.session) {
+              throw new Error('返回数据缺少 session');
+            }
+            
+            if (info.status === 'fail') {
+              throw new Error(info.msg || '启动失败');
+            }
+            
+            if (isMounted) {
+              setStreamInfo(info);
+              showToast('虚拟人已启动', 'info');
+            }
+          } catch (error) {
+            console.error('自动启动虚拟人失败:', error);
+            if (isMounted) {
+              setStreamInfo(null);
+              showToast(`虚拟人启动失败: ${error.message}`, 'error');
+            }
+          } finally {
+            if (isMounted) {
+              setAvatarLoading(false);
+            }
+          }
+        }
       } catch (e) {
         showToast('面试初始化失败', 'error');
       } finally {
         if (isMounted) setLoading(false);
       }
-    })();
-    // 3. 启动计时器
+    };
+    
+    initializeInterview();
+    
+    // 4. 启动计时器
     timerRef.current = setInterval(() => {
       setInterviewSeconds(sec => sec + 1);
     }, 1000);
+    
     return () => {
       if (userStream) {
         userStream.getTracks().forEach(track => track.stop());
@@ -197,7 +244,7 @@ const Interview = () => {
       isMounted = false;
     };
     // eslint-disable-next-line
-  }, []);
+  }, [type]);
 
   // 页面加载后，recordId有值时自动开始录制
   useEffect(() => {
@@ -239,6 +286,8 @@ const Interview = () => {
         userStream.getTracks().forEach(track => track.stop());
         await new Promise(resolve => setTimeout(resolve, 50));
       }
+      // 自动关闭虚拟人连接
+      await closeAvatarConnection();
       navigate(`/ai-review/${recordId}`);
     } catch (e) {
       showToast('结束面试失败', 'error');
@@ -255,6 +304,8 @@ const Interview = () => {
       userStream.getTracks().forEach(track => track.stop());
       await new Promise(resolve => setTimeout(resolve, 50));
     }
+    // 自动关闭虚拟人连接
+    await closeAvatarConnection();
     if (recordId) {
       try {
         await deleteInterviewRecord(recordId);
@@ -270,60 +321,15 @@ const Interview = () => {
     navigate('/login');
   };
 
-  // 启动avatar会话
-  const handleStartAvatar = async () => {
-    try {
-      const res = await fetch('/api/avatar/start', { method: 'POST' });
-      
-      // 检查响应状态
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-      
-      const text = await res.text();
-      console.log('【handleStartAvatar】后端原始返回:', text);
-      
-      // 检查返回内容是否为空
-      if (!text || text.trim() === '') {
-        throw new Error('后端返回空内容');
-      }
-      
-      // 尝试解析JSON
-      try {
-        const info = JSON.parse(text);
-        console.log('【handleStartAvatar】解析后:', info);
-        
-        // 检查必要字段
-        if (!info.sessionId) {
-          throw new Error('返回数据缺少 sessionId');
-        }
-        
-        if (info.status === 'fail') {
-          throw new Error(info.msg || '启动失败');
-        }
-        
-        setStreamInfo(info);
-        showToast('虚拟人已启动', 'info');
-      } catch (parseError) {
-        console.error('JSON解析失败:', parseError);
-        console.error('原始内容:', text);
-        throw new Error(`JSON解析失败: ${parseError.message}`);
-      }
-    } catch (error) {
-      console.error('启动虚拟人失败:', error);
-      setStreamInfo(null);
-      showToast(`启动虚拟人失败: ${error.message}`, 'error');
-    }
-  };
-  // 发送文本驱动
-  const handleSendAvatarText = async () => {
-    if (!avatarInput || !streamInfo?.sessionId) {
-      showToast('请输入文本或先启动虚拟人', 'error');
+  // 发送消息（大模型交互）
+  const handleSendMessage = async () => {
+    if (!avatarInput.trim() || !streamInfo?.session) {
+      showToast('请输入消息', 'error');
       return;
     }
     try {
-      const res = await fetch(`/api/avatar/send?sessionId=${streamInfo.sessionId}&text=${encodeURIComponent(avatarInput)}`, { method: 'POST' });
-      const data = await res.json();
+      const res = await api.post(`/avatar/send?sessionId=${streamInfo.session}&text=${encodeURIComponent(avatarInput.trim())}`);
+      const data = res.data;
       if (data.status === 'ok') {
         showToast(data.msg, 'info');
         setAvatarInput(''); // 清空输入框
@@ -331,22 +337,29 @@ const Interview = () => {
         showToast(data.msg, 'error');
       }
     } catch (error) {
-      showToast('发送文本失败', 'error');
+      showToast('发送消息失败', 'error');
     }
   };
-  // 关闭avatar会话
-  const handleStopAvatar = async () => {
-    if (!streamInfo?.sessionId) {
-      showToast('无有效会话', 'error');
-      return;
+
+  // 键盘事件处理
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault(); // 阻止默认的换行行为
+      if (avatarInput.trim() && !avatarLoading && streamInfo?.session) {
+        handleSendMessage();
+      }
     }
-    const res = await fetch(`/api/avatar/stop?sessionId=${streamInfo.sessionId}`, { method: 'POST' });
-    const data = await res.json();
-    if (data.status === 'ok') {
-      setStreamInfo(null);
-      showToast(data.msg, 'info');
-    } else {
-      showToast(data.msg, 'error');
+  };
+
+  // 关闭虚拟人连接
+  const closeAvatarConnection = async () => {
+    if (streamInfo?.session) {
+      try {
+        await api.post(`/avatar/stop?sessionId=${streamInfo.session}`);
+        console.log('虚拟人连接已关闭');
+      } catch (error) {
+        console.error('关闭虚拟人连接失败:', error);
+      }
     }
   };
 
@@ -355,6 +368,13 @@ const Interview = () => {
       userVideoRef.current.srcObject = userStream;
     }
   }, [userStream]);
+
+  // 组件卸载时自动关闭虚拟人连接
+  useEffect(() => {
+    return () => {
+      closeAvatarConnection();
+    };
+  }, [streamInfo?.session]);
 
   return (
     <div className="glass-effect" style={{ minHeight: '100vh' }}>
@@ -421,12 +441,89 @@ const Interview = () => {
               )}
             </div>
           </div>
-          {/* 操作按钮区 */}
-          <div style={{ marginTop: 32, display: 'flex', gap: 12, justifyContent: 'center' }}>
-            <Button onClick={handleStartAvatar} type="primary">启动虚拟人</Button>
-            <Button onClick={handleStopAvatar} danger>关闭虚拟人</Button>
-            <input value={avatarInput} onChange={e => setAvatarInput(e.target.value)} placeholder="输入给虚拟人的文本" style={{ width: 200, marginLeft: 8 }} />
-            <Button onClick={handleSendAvatarText}>发送文本</Button>
+          {/* 聊天输入区域 */}
+          <div className={styles.chatInputArea} style={{ 
+            width: '100%', 
+            maxWidth: 720, 
+            margin: '32px auto 0 auto',
+            position: 'relative'
+          }}>
+            {/* 隐藏的视频录制组件 */}
+            <MediaRecorderComponent
+              ref={mediaRecorderRef}
+              recordId={recordId}
+              uploadUrl="/api/interview/upload-video"
+              onStop={(blob) => {
+                console.log('视频录制完成，文件大小:', blob.size);
+              }}
+            />
+            <textarea
+              value={avatarInput}
+              onChange={e => {
+                setAvatarInput(e.target.value);
+                // 自动调整高度
+                const textarea = e.target;
+                textarea.style.height = 'auto';
+                textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="输入消息与虚拟人对话，按Enter发送..."
+              style={{
+                width: '100%',
+                minHeight: 96, // 4行文字高度：14px * 1.5 * 4 + 16px * 2 = 96px
+                maxHeight: 120,
+                padding: '16px 50px 16px 16px', // 右侧留出按钮空间
+                border: '1px solid #d1d5db',
+                borderRadius: 12,
+                fontSize: 14,
+                fontFamily: 'inherit',
+                resize: 'none',
+                outline: 'none',
+                transition: 'border-color 0.2s, height 0.2s',
+                lineHeight: '1.5',
+                overflowY: 'hidden',
+                background: '#fff',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#3b82f6';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#d1d5db';
+              }}
+            />
+            {/* 发送按钮 - 位于右下角 */}
+            <Button 
+              onClick={handleSendMessage} 
+              type="primary" 
+              disabled={avatarLoading || !streamInfo?.session || !avatarInput.trim()}
+              style={{
+                position: 'absolute',
+                right: 8,
+                bottom: 8,
+                height: 21, // 一行文字高度：14px * 1.5 = 21px
+                width: 36,
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                minWidth: 'unset'
+              }}
+            >
+              <span style={{ fontSize: 14 }}>→</span>
+            </Button>
+            {/* 虚拟人加载状态提示 */}
+            {avatarLoading && (
+              <div style={{ marginTop: 16, textAlign: 'center', color: '#64748b', fontSize: 14 }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 16, height: 16, border: '2px solid #e2e8f0', borderTop: '2px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                  正在启动虚拟人，请稍候...
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

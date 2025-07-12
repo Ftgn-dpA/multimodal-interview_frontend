@@ -66,4 +66,30 @@
     border-radius: 8px;
     min-height: 80px;
   }
+}
+
+/* 旋转动画 */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 聊天输入区域响应式设计 */
+@media (max-width: 768px) {
+  .chatInputArea {
+    margin: 20px 16px 0 16px;
+  }
+  
+  .chatInputArea textarea {
+    font-size: 16px; /* 移动端防止缩放 */
+    min-height: 108px; /* 移动端4行文字高度：16px * 1.5 * 4 + 16px * 2 = 108px */
+    padding: '16px 45px 16px 16px'; /* 移动端减少右侧padding */
+  }
+  
+  .chatInputArea button {
+    width: 32px;
+    height: 24px; /* 移动端一行文字高度：16px * 1.5 = 24px */
+    right: 6px;
+    bottom: 6px;
+  }
 } 
