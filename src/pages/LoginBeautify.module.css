@@ -1,0 +1,207 @@
+/* 纯白背景 */
+.loginBeautifyBg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #fff;
+  overflow: hidden;
+}
+
+/* 动态圆形 */
+.floatingCircle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.38;
+  animation: floatCircleSin 7s cubic-bezier(0.4,0,0.2,1) infinite alternate, circleColorFade 8s linear infinite;
+}
+.floatingCircle.pink {
+  background: #e05fa8;
+}
+.floatingCircle.purple {
+  background: #6c3ae6;
+}
+.floatingCircle.deep {
+  background: #4b1c8f;
+}
+
+/* 动态方形 */
+.floatingSquare {
+  position: absolute;
+  border-radius: 0;
+  opacity: 1;
+  background: none;
+  animation: floatSquareClip var(--square-duration, 5s) linear infinite;
+  clip-path: inset(100% 0% 0% 0%);
+  pointer-events: none;
+}
+.squareInner {
+  width: 100%;
+  height: 100%;
+  background: #a18aff;
+  opacity: 0.12;
+  border-radius: 0;
+  animation: squareInnerMove var(--square-duration, 5s) linear infinite;
+}
+
+.squareSvgAnim {
+  width: 100%;
+  height: 100%;
+  background: #a18aff;
+  opacity: 0.12;
+  border-radius: 0;
+  animation: squareSvgAnimMove var(--square-duration, 5s) linear infinite;
+}
+
+.squareAnimWrap {
+  position: absolute;
+  bottom: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.squareAnim {
+  width: 100%;
+  height: 100%;
+  background: #a18aff;
+  opacity: 0.12;
+  border-radius: 0;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  animation: squareAnimMove var(--square-duration, 5s) linear infinite;
+  border: 1.5px solid rgba(120,120,120,0.18);
+}
+
+@keyframes floatSquareClip {
+  0% {
+    clip-path: inset(100% 0% 0% 0%);
+  }
+  15% {
+    clip-path: inset(0% 0% 0% 0%);
+  }
+  100% {
+    clip-path: inset(0% 0% 0% 0%);
+  }
+}
+@keyframes squareInnerMove {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.12;
+  }
+  15% {
+    transform: translateY(-24px) rotate(30deg);
+    opacity: 0.12;
+  }
+  90% {
+    transform: translateY(-150px) rotate(170deg);
+    opacity: 0.12;
+  }
+  100% {
+    transform: translateY(-180px) rotate(180deg);
+    opacity: 0;
+  }
+}
+
+@keyframes squareSvgAnimMove {
+  0% {
+    transform: translateY(100%) rotate(0deg);
+    opacity: 0.12;
+  }
+  15% {
+    transform: translateY(76%) rotate(30deg);
+    opacity: 0.12;
+  }
+  90% {
+    transform: translateY(-25%) rotate(170deg);
+    opacity: 0.12;
+  }
+  100% {
+    transform: translateY(-40%) rotate(180deg);
+    opacity: 0;
+  }
+}
+
+@keyframes floatCircleSin {
+  0% { transform: translateY(0); }
+  20% { transform: translateY(-12px); }
+  50% { transform: translateY(-28px); }
+  80% { transform: translateY(-12px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes squareAnimMove {
+  0% {
+    transform: translateY(var(--square-travel, 100%)) rotate(0deg);
+    opacity: 0.12;
+  }
+  75% {
+    transform: translateY(calc(var(--square-travel, 100%) * -0.5)) rotate(270deg);
+    opacity: 0.12;
+  }
+  100% {
+    transform: translateY(calc(var(--square-travel, 100%) * -1)) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes circleColorFade {
+  0% {
+    background: #e05fa8;
+  }
+  50% {
+    background: #6c3ae6;
+  }
+  100% {
+    background: #e05fa8;
+  }
+}
+@keyframes circleColorFade1 {
+  0% { background: #e05fa8; }
+  50% { background: #6c3ae6; }
+  100% { background: #e05fa8; }
+}
+@keyframes circleColorFade2 {
+  0% { background: #6c3ae6; }
+  50% { background: #e05fa8; }
+  100% { background: #6c3ae6; }
+}
+@keyframes circleColorFade3 {
+  0% { background: #b832a6; }
+  50% { background: #4b1c8f; }
+  100% { background: #b832a6; }
+}
+
+/* 登录卡片美化 */
+.loginCardBeautify {
+  background: #fff;
+  box-shadow: 0 4px 32px 0 rgba(161,138,255,0.10);
+  border-radius: 24px;
+  border: none;
+  padding: 2.5rem 2rem;
+}
+
+/* 渐变标题 */
+.gradientTitle {
+  background: linear-gradient(90deg, #a18aff 0%, #f7b0e3 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+/* 深紫色按钮 */
+.loginGradientBtn {
+  background: #6C63FF;
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px 0 rgba(161,138,255,0.10);
+  transition: box-shadow 0.2s, transform 0.2s, background 0.2s;
+  font-weight: 600;
+}
+.loginGradientBtn:hover {
+  background: #574b90;
+  box-shadow: 0 4px 16px 0 rgba(161,138,255,0.18);
+  transform: translateY(-2px) scale(1.03);
+} 

@@ -108,7 +108,7 @@ const Register = () => {
   ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div style={{ maxWidth: '360px', margin: '0 auto' }}>
       {/* 背景装饰 */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-float"></div>
@@ -169,7 +169,7 @@ const Register = () => {
 
         {/* 右侧：注册表单 */}
         <motion.div variants={cardVariants} initial="hidden" animate="visible">
-          <Card className="p-8" variant="glass">
+          <Card className="p-8" variant="glass" style={{ maxWidth: '360px', margin: '0 auto' }}>
             <div className="space-y-6">
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-semibold text-gray-800 mb-2">
