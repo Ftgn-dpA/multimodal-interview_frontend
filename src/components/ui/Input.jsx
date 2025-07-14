@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 const Input = ({ 
   label,
   error,
+  iconLeft,
   className = '',
   ...props 
 }) => {
@@ -14,25 +15,27 @@ const Input = ({
           {label}
         </label>
       )}
-      <motion.div
-        className={error ? 'animate-shake' : ''}
-        whileFocus={{ scale: 1.02 }}
-        transition={{ duration: 0.1 }}
-      >
+      <div className="input-wrapper">
+        {iconLeft && (
+          <>
+            <span className="input-icon-left">{iconLeft}</span>
+            <span className="input-icon-divider" />
+          </>
+        )}
         <input
-          className={`modern-input ${error ? 'error' : ''} ${className}`.trim()}
+          className={`modern-input ${error ? 'error' : ''} ${iconLeft ? 'input-has-icon' : ''} ${className}`.trim()}
           {...props}
         />
-        {error && (
-          <motion.p
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-1 text-sm text-red-600"
-          >
-            {error}
-          </motion.p>
-        )}
-      </motion.div>
+      </div>
+      {error && (
+        <motion.p
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-1 text-sm text-red-600"
+        >
+          {error}
+        </motion.p>
+      )}
     </div>
   );
 };

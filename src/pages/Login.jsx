@@ -207,36 +207,29 @@ const Login = () => {
 
                 <div className="space-y-4">
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                     <Input
                       type="text"
                       placeholder="用户名"
                       value={formData.username}
                       onChange={(e) => handleInputChange('username', e.target.value)}
                       error={errors.username}
-                      className="pl-10"
+                      iconLeft={<User className="text-slate-400 w-5 h-5" />}
+                      className=""
                       onKeyPress={(e) => e.key === 'Enter' && onFinish()}
                     />
                   </div>
 
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                     <Input
                       type={showPassword ? 'text' : 'password'}
                       placeholder="密码"
                       value={formData.password}
                       onChange={(e) => handleInputChange('password', e.target.value)}
                       error={errors.password}
-                      className="pl-10 pr-10"
+                      iconLeft={<Lock className="text-slate-400 w-5 h-5" />}
+                      className=""
                       onKeyPress={(e) => e.key === 'Enter' && onFinish()}
                     />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
                   </div>
                 </div>
 
@@ -246,7 +239,7 @@ const Login = () => {
                   loading={loading}
                   onClick={onFinish}
                   className={styles.loginGradientBtn}
-                  style={{ width: '100%', height: '48px', borderRadius: '16px', fontSize: '16px', marginTop: '8px' }}
+                  style={{ width: '100%', height: '48px', borderRadius: '16px', fontSize: '16px', marginTop: '32px' }}
                   icon={!loading && <ArrowRight style={{ fontSize: '16px' }} />}
                 >
                   {loading ? '登录中...' : '登录'}
