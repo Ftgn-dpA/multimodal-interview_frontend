@@ -4,4 +4,8 @@ const bgEffectConfig = {
   type: 'waves', // 可选 'waves' | 'particles'
 };
 
-export default bgEffectConfig; 
+export default bgEffectConfig;
+
+// 新建 interview.js 配置文件
+export const nextButtonText = '继续';
+export const nextButtonSendText = '继续'; 

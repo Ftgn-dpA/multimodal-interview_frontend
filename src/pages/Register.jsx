@@ -8,6 +8,7 @@ import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import { authAPI } from '../api';
 import { showToast } from '../utils/toast';
+import styles from './AuthBackground.module.css';
 
 const Register = () => {
   const [loading, setLoading] = useState(false);
@@ -108,16 +109,10 @@ const Register = () => {
   ];
 
   return (
-    <div style={{ maxWidth: '360px', margin: '0 auto' }}>
-      {/* 背景装饰 */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-float"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-float" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute top-40 left-40 w-80 h-80 bg-pink-400 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-float" style={{ animationDelay: '2s' }}></div>
-      </div>
-
+    <div className="min-h-screen flex items-center justify-center" style={{ position: 'relative', zIndex: 1, height: '100vh', overflow: 'auto' }}>
       <motion.div
         className="relative z-10 w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-8"
+        style={{ padding: '40px 0' }}
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -131,45 +126,29 @@ const Register = () => {
         >
           <div className="space-y-6">
             <div>
-              <h1 className="text-5xl font-bold gradient-text mb-4">
+              <h1 className={"text-5xl font-bold mb-4 text-center " + styles.gradientTitle}>
                 开始您的面试之旅
               </h1>
-              <p className="text-xl text-gray-600 leading-relaxed">
+              <p className="text-xl text-gray-600 leading-relaxed text-center">
                 加入我们的智能面试系统，体验前所未有的面试训练方式
               </p>
             </div>
-
-            <div className="space-y-4">
+            {/* 横向分布的功能点，间距加大 */}
+            <div className="flex justify-center items-center mt-8" style={{ gap: '64px' }}>
               {features.map((feature, index) => (
-                <motion.div
-                  key={feature}
-                  className="flex items-center space-x-3"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.5 + index * 0.1 }}
-                >
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-5 h-5 text-blue-600" />
+                <div key={feature} className="flex flex-col items-center">
+                  <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-2">
+                    <CheckCircle className="w-6 h-6 text-blue-600" />
                   </div>
-                  <span className="text-gray-700 font-medium">{feature}</span>
-                </motion.div>
+                  <span className="text-gray-700 font-medium text-base whitespace-nowrap">{feature}</span>
+                </div>
               ))}
-            </div>
-
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 border border-white/30">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                为什么选择我们？
-              </h3>
-              <p className="text-gray-600">
-                我们的AI面试官能够提供个性化的面试体验，帮助您提升面试技巧，获得更好的职业机会。
-              </p>
             </div>
           </div>
         </motion.div>
-
         {/* 右侧：注册表单 */}
-        <motion.div variants={cardVariants} initial="hidden" animate="visible">
-          <Card className="p-8" variant="glass" style={{ maxWidth: '360px', margin: '0 auto' }}>
+        <motion.div variants={cardVariants} initial="hidden" animate="visible" exit={{ opacity: 0, x: 40, transition: { duration: 0.4 } }}>
+          <Card className={styles.loginCardBeautify + " p-8"} variant="glass" style={{ maxWidth: '720px', margin: '0 auto' }}>
             <div className="space-y-6">
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-semibold text-gray-800 mb-2">
@@ -179,84 +158,55 @@ const Register = () => {
                   开始您的智能面试体验
                 </p>
               </div>
-
               <div className="space-y-4">
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <Input
-                    type="text"
-                    placeholder="用户名"
-                    value={formData.username}
-                    onChange={(e) => handleInputChange('username', e.target.value)}
-                    error={errors.username}
-                    className="pl-10"
-                    onKeyPress={(e) => e.key === 'Enter' && onFinish()}
-                  />
-                </div>
-
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <Input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="密码"
-                    value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
-                    error={errors.password}
-                    className="pl-10 pr-10"
-                    onKeyPress={(e) => e.key === 'Enter' && onFinish()}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <Input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    placeholder="确认密码"
-                    value={formData.confirmPassword}
-                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                    error={errors.confirmPassword}
-                    className="pl-10 pr-10"
-                    onKeyPress={(e) => e.key === 'Enter' && onFinish()}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
+                <Input
+                  type="text"
+                  placeholder="用户名"
+                  value={formData.username}
+                  onChange={(e) => handleInputChange('username', e.target.value)}
+                  error={errors.username}
+                  iconLeft={<User className="text-slate-400 w-5 h-5" />}
+                  onKeyPress={(e) => e.key === 'Enter' && onFinish()}
+                  style={{ width: '100%' }}
+                />
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="密码"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  error={errors.password}
+                  iconLeft={<Lock className="text-slate-400 w-5 h-5" />}
+                  onKeyPress={(e) => e.key === 'Enter' && onFinish()}
+                  style={{ width: '100%' }}
+                />
+                <Input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="确认密码"
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                  error={errors.confirmPassword}
+                  iconLeft={<Lock className="text-slate-400 w-5 h-5" />}
+                  onKeyPress={(e) => e.key === 'Enter' && onFinish()}
+                  style={{ width: '100%' }}
+                />
               </div>
-
               <Button
                 type="primary"
                 size="large"
                 loading={loading}
                 onClick={onFinish}
-                style={{ 
-                  width: '100%',
-                  height: '48px',
-                  borderRadius: '12px',
-                  fontSize: '16px'
-                }}
+                className={styles.loginGradientBtn}
+                style={{ width: '100%', height: '48px', borderRadius: '16px', fontSize: '16px', marginTop: '32px' }}
                 icon={!loading && <ArrowRight style={{ fontSize: '16px' }} />}
               >
-                {loading ? '注册中...' : '创建账户'}
+                {loading ? '注册中...' : '注册'}
               </Button>
-
               <div className="text-center">
-                <p className="text-gray-600">
+                <p style={{ color: '#a18aff' }}>
                   已有账号？{' '}
                   <Link 
                     to="/login" 
-                    className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                    style={{ color: '#f7b0e3', fontWeight: 500 }}
                   >
                     立即登录
                   </Link>
@@ -266,8 +216,7 @@ const Register = () => {
           </Card>
         </motion.div>
       </motion.div>
-
-      <Toast visible={toast.visible} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, visible: false })} />
+      <Toast toast={toast} setToast={setToast} />
     </div>
   );
 };

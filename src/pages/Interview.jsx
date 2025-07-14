@@ -16,7 +16,7 @@ import MediaRecorderComponent from '../components/MediaRecorder.jsx';
 import { RTCPlayer } from '../libs/rtcplayer.esm.js';
 
 // AI面试官WebRTC视频组件
-const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children }) => {
+const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avatarLoading }) => {
   const wrapperRef = useRef(null);
   const playerRef = useRef(null);
   const [playNotAllowed, setPlayNotAllowed] = useState(false);
@@ -65,6 +65,20 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children }) =>
       try {
         player.play();
         playerRef.current = player;
+        // 让video内容左右居中，高度与播放器一致
+        setTimeout(() => {
+          const video = wrapperRef.current?.querySelector('video');
+          if (video) {
+            video.style.width = '100%';
+            video.style.height = '100%';
+            video.style.objectFit = 'contain';
+            video.style.borderRadius = '24px';
+            video.style.background = '#18181c';
+            video.style.padding = '0';
+            video.style.display = 'block';
+            video.style.margin = '0 auto';
+          }
+        }, 500);
         console.log('【AIInterviewerVideo useEffect】RTCPlayer开始播放');
       } catch (error) {
         console.error('【AIInterviewerVideo useEffect】RTCPlayer播放失败:', error);
@@ -85,41 +99,67 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children }) =>
   return (
     <div className={styles.aiVideo} style={{ position: 'relative' }}>
       <div
-        id="playerWrapper"
-        ref={wrapperRef}
         style={{
           width: '100%',
-          height: '100%',
-          position: 'relative',
+          maxWidth: 720,
+          aspectRatio: '16/9',
+          background: '#18181c',
           borderRadius: 24,
+          boxShadow: '0 4px 32px 0 rgba(0,0,0,0.18)',
+          position: 'relative',
           overflow: 'hidden',
-          background: 'transparent', // 去除黑色背景
+          margin: '0 auto',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}
-      />
-      {playNotAllowed && (
-        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-          <div>
-            <div style={{ fontSize: 24, marginBottom: 12 }}>浏览器限制自动播放，请点击下方按钮恢复</div>
-            <button onClick={() => { playerRef.current && playerRef.current.resume(); setPlayNotAllowed(false); }} style={{ fontSize: 18, padding: '8px 24px', borderRadius: 8 }}>点击恢复播放</button>
+      >
+        {/* 视频内容（RTCPlayer） */}
+        <div
+          id="playerWrapper"
+          ref={wrapperRef}
+          style={{
+            width: '100%',
+            height: '100%',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            borderRadius: 24,
+            overflow: 'hidden',
+            zIndex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        />
+        {/* 加载动画：虚拟人加载中且未就绪时显示 */}
+        {avatarLoading && (!streamInfo || !streamInfo.stream_url) && (
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+            <div style={{ width: 72, height: 72, border: '6px solid #fff', borderTop: '6px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
           </div>
-        </div>
-      )}
-      {(!streamInfo || !streamInfo.stream_url) && (
-        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-          <div style={{ fontSize: 110, marginBottom: 10 }}>🤖</div>
-          <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: 2 }}>AI面试官</div>
-        </div>
-      )}
-      {showSubtitle && subtitle && (
-        <div style={{
-          position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(0,0,0,0.7)', color: 'white', padding: '14px 32px', borderRadius: 12, fontSize: 18, maxWidth: '90%', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.18)'
-        }}>{subtitle}</div>
-      )}
-      {children}
+        )}
+        {playNotAllowed && (
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+            <div>
+              <div style={{ fontSize: 24, marginBottom: 12 }}>浏览器限制自动播放，请点击下方按钮恢复</div>
+              <button onClick={() => { playerRef.current && playerRef.current.resume(); setPlayNotAllowed(false); }} style={{ fontSize: 18, padding: '8px 24px', borderRadius: 8 }}>点击恢复播放</button>
+            </div>
+          </div>
+        )}
+        {(!streamInfo || !streamInfo.stream_url) && (
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+            <div style={{ fontSize: 110, marginBottom: 10 }}>🤖</div>
+            <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: 2 }}>AI面试官</div>
+          </div>
+        )}
+        {showSubtitle && subtitle && (
+          <div style={{
+            position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(0,0,0,0.7)', color: 'white', padding: '14px 32px', borderRadius: 12, fontSize: 18, maxWidth: '90%', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.18)'
+          }}>{subtitle}</div>
+        )}
+        {children}
+      </div>
     </div>
   );
 };
@@ -151,7 +191,6 @@ const Interview = () => {
   const [question, setQuestion] = useState('');
   const [recordId, setRecordId] = useState(null);
   const [interviewInfo, setInterviewInfo] = useState(null);
-  const [showSubtitle, setShowSubtitle] = useState(true);
   const [userStream, setUserStream] = useState(null);
   const [endModalVisible, setEndModalVisible] = useState(false);
   const [exitModalVisible, setExitModalVisible] = useState(false);
@@ -376,6 +415,14 @@ const Interview = () => {
     };
   }, [streamInfo?.session]);
 
+  // 虚拟人加载完成后弹出Toast
+  useEffect(() => {
+    if (!avatarLoading && streamInfo && streamInfo.session && streamInfo.stream_url) {
+      showToast('虚拟人已启动', 'info');
+    }
+    // eslint-disable-next-line
+  }, [avatarLoading, streamInfo]);
+
   return (
     <div className="glass-effect" style={{ minHeight: '100vh' }}>
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, visible: false })} />
@@ -412,10 +459,6 @@ const Interview = () => {
           }}>
             面试时长：{formatTime(interviewSeconds)}
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#64748b', cursor: 'pointer' }}>
-            <input type="checkbox" checked={showSubtitle} onChange={e => setShowSubtitle(e.target.checked)} style={{ accentColor: '#3b82f6', width: 16, height: 16 }} />
-            显示AI字幕
-          </label>
           <Button type="primary" style={{ height: 40, minWidth: 120, padding: '0 24px', borderRadius: 8, fontSize: 14, fontWeight: 500 }} onClick={() => setEndModalVisible(true)} disabled={loading || !recordId}>提交并结束面试</Button>
           <Button danger style={{ height: 40, minWidth: 120, padding: '0 24px', borderRadius: 8, fontSize: 14, fontWeight: 500 }} onClick={() => setExitModalVisible(true)}>直接退出面试</Button>
         </div>
@@ -426,7 +469,7 @@ const Interview = () => {
           {/* 视频区整体容器 */}
           <div style={{ width: '100%', maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             {/* AI面试官视频 */}
-            <AIInterviewerVideo showSubtitle={showSubtitle} subtitle={question} streamInfo={streamInfo} />
+            <AIInterviewerVideo subtitle={question} streamInfo={streamInfo} avatarLoading={avatarLoading} />
             {/* 面试者视频，紧贴AI面试官视频下方 */}
             <div className={styles.userVideoArea} style={{ marginTop: 16 }}>
               {userStream ? (
@@ -457,63 +500,22 @@ const Interview = () => {
                 console.log('视频录制完成，文件大小:', blob.size);
               }}
             />
-            <textarea
-              value={avatarInput}
-              onChange={e => {
-                setAvatarInput(e.target.value);
-                // 自动调整高度
-                const textarea = e.target;
-                textarea.style.height = 'auto';
-                textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+            <Button
+              onClick={() => {
+                setAvatarInput('继续');
+                handleSendMessage();
               }}
-              onKeyDown={handleKeyDown}
-              placeholder="输入消息与虚拟人对话，按Enter发送..."
+              type="primary"
+              disabled={avatarLoading || !streamInfo?.session}
               style={{
                 width: '100%',
-                minHeight: 96, // 4行文字高度：14px * 1.5 * 4 + 16px * 2 = 96px
-                maxHeight: 120,
-                padding: '16px 50px 16px 16px', // 右侧留出按钮空间
-                border: '1px solid #d1d5db',
-                borderRadius: 12,
-                fontSize: 14,
-                fontFamily: 'inherit',
-                resize: 'none',
-                outline: 'none',
-                transition: 'border-color 0.2s, height 0.2s',
-                lineHeight: '1.5',
-                overflowY: 'hidden',
-                background: '#fff',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = '#3b82f6';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = '#d1d5db';
-              }}
-            />
-            {/* 发送按钮 - 位于右下角 */}
-            <Button 
-              onClick={handleSendMessage} 
-              type="primary" 
-              disabled={avatarLoading || !streamInfo?.session || !avatarInput.trim()}
-              style={{
-                position: 'absolute',
-                right: 8,
-                bottom: 8,
-                height: 21, // 一行文字高度：14px * 1.5 = 21px
-                width: 36,
-                borderRadius: 6,
-                fontSize: 12,
-                fontWeight: 500,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 0,
-                minWidth: 'unset'
+                height: 64,
+                fontSize: 20,
+                borderRadius: 16,
+                marginTop: 8
               }}
             >
-              <span style={{ fontSize: 14 }}>→</span>
+              继续
             </Button>
             {/* 虚拟人加载状态提示 */}
             {avatarLoading && (

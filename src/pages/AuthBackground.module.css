@@ -1,6 +1,6 @@
 /* 纯白背景 */
 .loginBeautifyBg {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 0;
   width: 100vw;
@@ -13,17 +13,8 @@
 .floatingCircle {
   position: absolute;
   border-radius: 50%;
+  background: #e05fa8; /* 兜底色 */
   opacity: 0.38;
-  animation: floatCircleSin 7s cubic-bezier(0.4,0,0.2,1) infinite alternate, circleColorFade 8s linear infinite;
-}
-.floatingCircle.pink {
-  background: #e05fa8;
-}
-.floatingCircle.purple {
-  background: #6c3ae6;
-}
-.floatingCircle.deep {
-  background: #4b1c8f;
 }
 
 /* 动态方形 */

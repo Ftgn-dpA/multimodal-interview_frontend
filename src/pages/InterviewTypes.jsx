@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Button from '../components/ui/Button';
@@ -8,6 +8,7 @@ import { Title, Text } from '../components/ui/Typography';
 import Toast from '../components/ui/Toast';
 import { removeToken } from '../utils/auth';
 import { showToast } from '../utils/toast';
+import { BgEffectContext } from '../App';
 
 // 面试类型数据（用emoji图标）
 const interviewTypes = [
@@ -140,19 +141,22 @@ const InterviewTypes = () => {
   const [loading, setLoading] = useState(false);
   const [showPositions, setShowPositions] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
-
-  const handleLogout = () => {
-    removeToken();
-    navigate('/login');
-  };
-
+  const { setThemeColor, resetColors } = useContext(BgEffectContext);
   const handleCategorySelect = (category) => {
     if (category && category.positions) {
       setSelectedCategory(category);
       setSelectedPosition(null);
       setShowPositions(true);
+      setThemeColor(category.color);
     }
   };
+
+  // 移除 useEffect 里的 resetColors
+  // useEffect(() => {
+  //   return () => {
+  //     resetColors();
+  //   };
+  // }, [resetColors]);
 
   const handlePositionSelect = (position) => {
     setSelectedPosition(position);
@@ -180,6 +184,13 @@ const InterviewTypes = () => {
     setShowPositions(false);
     setSelectedCategory(null);
     setSelectedPosition(null);
+    resetColors(); // 返回主页时还原泡泡为五色
+  };
+
+  const handleLogout = () => {
+    removeToken();
+    resetColors(); // 退出登录时还原泡泡为五色
+    navigate('/login');
   };
 
   const getDifficultyColor = (difficulty) => {
