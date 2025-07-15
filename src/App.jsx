@@ -11,6 +11,7 @@ import Demo from './pages/Demo';
 import Interview from './pages/Interview';
 import DeviceCheck from './pages/DeviceCheck';
 import AuthBackground from './pages/AuthBackground';
+import Profile from './pages/Profile';
 import { isAuthenticated } from './utils/auth';
 import WAVES from "vanta/dist/vanta.waves.min";
 import * as THREE from "three";
@@ -242,6 +243,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <DeviceCheck />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <Profile />
               </ProtectedRoute>
             } 
           />

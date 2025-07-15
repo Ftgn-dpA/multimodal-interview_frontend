@@ -249,6 +249,13 @@ const InterviewTypes = () => {
               历史记录
             </Button>
             <Button
+              type="text"
+              onClick={() => navigate('/profile')}
+              style={{ height: 40, padding: '0 20px', borderRadius: 8, fontSize: 14, fontWeight: 500, color: '#64748b', border: '1px solid #e2e8f0', background: '#fff', transition: 'all 0.3s', minWidth: 100 }}
+            >
+              个人中心
+            </Button>
+            <Button
               danger
               onClick={handleLogout}
               style={{ height: 40, padding: '0 24px', borderRadius: 8, fontSize: 14, fontWeight: 500, background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', border: 'none', boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)', transition: 'all 0.3s', minWidth: 100 }}

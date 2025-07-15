@@ -12,7 +12,7 @@ import Button from '../components/ui/Button';
 import Tag from '../components/ui/Tag';
 import { Title, Text, Paragraph } from '../components/ui/Typography';
 import Progress from '../components/ui/Progress';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const CustomDeleteModal = ({ visible, onConfirm, onCancel, record }) => {
   if (!visible) return null;
@@ -30,7 +30,7 @@ const CustomDeleteModal = ({ visible, onConfirm, onCancel, record }) => {
         <Title level={4} style={{ color: '#ef4444', margin: 0 }}>确认删除</Title>
       </div>
       <Text style={{ fontSize: 16, color: '#475569' }}>
-        确定要删除"${record?.position || '该岗位'}的面试记录吗？<br/>此操作不可恢复。
+        确定要删除{record?.position ? `“${record.position}”` : ''}的面试记录吗？此操作不可恢复。
       </Text>
     </Modal>
   );
@@ -125,12 +125,14 @@ const History = () => {
     setDeleteModalVisible(true);
   };
 
+  // confirmDeleteRecord 内部，删除成功后本地移除被删项并配合动画
   const confirmDeleteRecord = async () => {
     if (!deleteRecord) return;
     try {
       await deleteInterviewRecord(deleteRecord.id);
       showToast('删除成功', 'success');
-      fetchHistory();
+      // 本地移除被删项，触发动画
+      setRecords(prev => prev.filter(r => r.id !== deleteRecord.id));
     } catch (error) {
       showToast('删除失败', 'error');
     } finally {
@@ -272,7 +274,6 @@ const History = () => {
   return (
     <div className="history-root" style={{ minHeight: '100vh', background: 'transparent' }}>
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
-      {loading && <Loading />}
       <div className="history-header" style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         background: '#fff', padding: '0 32px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
@@ -307,97 +308,103 @@ const History = () => {
               查看您的面试历史和AI评测报告
             </Text>
           </div>
-          {records.length === 0 ? (
+          {loading ? (
+            <Loading />
+          ) : records.length === 0 ? (
             <EmptyState text="暂无面试记录" buttonText="开始第一次面试" onButtonClick={() => navigate('/interview-types')} />
           ) : (
             <div>
-              {records.map((record, idx) => (
-                <motion.div
-                  key={record.id}
-                  initial={{ opacity: 0, y: 32 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.08 * idx }}
-                  style={{ marginBottom: 24 }}
-                >
-                  <Card>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                          <Title level={4} style={{ margin: 0 }}>{record.position}</Title>
+              <AnimatePresence>
+                {records.map(r => (
+                  <motion.div
+                    key={r.id}
+                    layout
+                    initial={{ opacity: 0, y: 32 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: 60, transition: { duration: 0.28 } }}
+                    transition={{ duration: 0.5, delay: 0.08 * records.indexOf(r) }}
+                    style={{ marginBottom: 24 }}
+                  >
+                    <Card>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                            <Title level={4} style={{ margin: 0 }}>{r.position}</Title>
+                          </div>
+                        </div>
+                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                          <button
+                            onClick={() => setOpenMenuId(openMenuId === r.id ? null : r.id)}
+                            style={{
+                              height: 32,
+                              width: 32,
+                              borderRadius: 8,
+                              backgroundColor: '#f1f5f9',
+                              border: '1px solid #e2e8f0',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.2s',
+                              cursor: 'pointer',
+                              outline: 'none',
+                              padding: 0
+                            }}
+                          >
+                            <span style={{ fontSize: 18, color: '#475569' }}>⋯</span>
+                          </button>
+                          {openMenuId === r.id && renderCustomMenu(r)}
                         </div>
                       </div>
-                      <div style={{ position: 'relative', display: 'inline-block' }}>
-                        <button
-                          onClick={() => setOpenMenuId(openMenuId === record.id ? null : record.id)}
-                          style={{
-                            height: 32,
-                            width: 32,
-                            borderRadius: 8,
-                            backgroundColor: '#f1f5f9',
-                            border: '1px solid #e2e8f0',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s',
-                            cursor: 'pointer',
-                            outline: 'none',
-                            padding: 0
-                          }}
-                        >
-                          <span style={{ fontSize: 18, color: '#475569' }}>⋯</span>
-                        </button>
-                        {openMenuId === record.id && renderCustomMenu(record)}
-                      </div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '16px', color: '#64748b' }}>⏰</span>
-                        <div>
-                          <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>开始时间</Text>
-                          <Text style={{ fontSize: '14px', color: '#475569', fontWeight: 500 }}>
-                            {formatDateTime(record.startTime)}
-                          </Text>
-                        </div>
-                      </div>
-                      {record.duration && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontSize: '16px', color: '#64748b' }}>⏰</span>
                           <div>
-                            <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>面试时长</Text>
+                            <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>开始时间</Text>
                             <Text style={{ fontSize: '14px', color: '#475569', fontWeight: 500 }}>
-                              {formatDurationFull(record.startTime, record.endTime)}
+                              {formatDateTime(r.startTime)}
                             </Text>
                           </div>
                         </div>
-                      )}
-                      {record.overallScore && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '16px', color: '#f59e0b' }}>🏆</span>
-                          <div>
-                            <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>总分</Text>
-                            <Text strong style={{ fontSize: '16px', color: '#f59e0b', fontWeight: 600 }}>
-                              {record.overallScore}分
-                            </Text>
+                        {r.duration && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '16px', color: '#64748b' }}>⏰</span>
+                            <div>
+                              <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>面试时长</Text>
+                              <Text style={{ fontSize: '14px', color: '#475569', fontWeight: 500 }}>
+                                {formatDurationFull(r.startTime, r.endTime)}
+                              </Text>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                    {record.overallFeedback && (
-                      <div style={{
-                        background: '#f8fafc',
-                        padding: '16px',
-                        borderRadius: '12px',
-                        border: '1px solid #e2e8f0'
-                      }}>
-                        <Text style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6' }}>
-                          {record.overallFeedback}
-                        </Text>
+                        )}
+                        {r.overallScore && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '16px', color: '#f59e0b' }}>🏆</span>
+                            <div>
+                              <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>总分</Text>
+                              <Text strong style={{ fontSize: '16px', color: '#f59e0b', fontWeight: 600 }}>
+                                {r.overallScore}分
+                              </Text>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </Card>
-                </motion.div>
-              ))}
+                      {r.overallFeedback && (
+                        <div style={{
+                          background: '#f8fafc',
+                          padding: '16px',
+                          borderRadius: '12px',
+                          border: '1px solid #e2e8f0'
+                        }}>
+                          <Text style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6' }}>
+                            {r.overallFeedback}
+                          </Text>
+                        </div>
+                      )}
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           )}
         </motion.div>

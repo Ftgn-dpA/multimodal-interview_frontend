@@ -365,13 +365,14 @@ const Interview = () => {
   };
 
   // 发送消息（大模型交互）
-  const handleSendMessage = async () => {
-    if (!avatarInput.trim() || !streamInfo?.session) {
+  const handleSendMessage = async (msg) => {
+    const text = (typeof msg === 'string' ? msg : avatarInput).trim();
+    if (!text || !streamInfo?.session) {
       showToast('请输入消息', 'error');
       return;
     }
     try {
-      const res = await api.post(`/avatar/send?sessionId=${streamInfo.session}&text=${encodeURIComponent(avatarInput.trim())}`);
+      const res = await api.post(`/avatar/send?sessionId=${streamInfo.session}&text=${encodeURIComponent(text)}`);
       const data = res.data;
       if (data.status === 'ok') {
         showToast(data.msg, 'info');
@@ -504,11 +505,9 @@ const Interview = () => {
                 console.log('视频录制完成，文件大小:', blob.size);
               }}
             />
+            {/* “继续”按钮直接传递 '继续' 给 handleSendMessage */}
             <Button
-              onClick={() => {
-                setAvatarInput('继续');
-                handleSendMessage();
-              }}
+              onClick={() => handleSendMessage('继续')}
               type="primary"
               disabled={avatarLoading || !streamInfo?.session}
               style={{
