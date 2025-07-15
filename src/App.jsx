@@ -31,11 +31,14 @@ const prevColorRef = React.createRef();
 
 // 背景动效组件
 const BgEffect = React.memo(({ mainColor, animStart, animating, setAnimating, setAnimStart, prevColorRef, bubblesRef }) => {
-  // 五个主色
   const MAIN_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444"];
   const BUBBLE_NUM = 36;
   const canvasRef = useRef(null);
-  // 泡泡生成
+  const transitionDuration = 600; // ms
+  const transitionProgressRef = useRef(1); // 0~1
+  const animationFrameRef = useRef();
+  const lastTransitionTimeRef = useRef();
+
   function genBubble(idx) {
     const r = 60 + Math.random() * 80;
     const originalColor = MAIN_COLORS[idx % MAIN_COLORS.length];
@@ -44,23 +47,43 @@ const BgEffect = React.memo(({ mainColor, animStart, animating, setAnimating, se
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
       r,
-      originalColor, // 记录五色原色
-      themeColor: null, // 主题色
-      color: originalColor, // 只用 originalColor，draw 阶段强制赋值
+      originalColor,
+      themeColor: null,
+      color: originalColor,
       dx: (Math.random() - 0.5) * 0.2,
       dy: -0.1 - Math.random() * 0.15,
       alpha: alpha,
-      phase: Math.random() * Math.PI * 2
+      phase: Math.random() * Math.PI * 2,
+      fromColor: originalColor,
+      toColor: originalColor
     };
   }
-  // 泡泡池
-  // 由 props 传入 bubblesRef
-  // 初始化五色泡泡
+
+  // 切换主题色时，给每个泡泡设置 fromColor/toColor，并重置动画
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!bubblesRef.current || bubblesRef.current.length === 0) return;
+    if (mainColor) {
+      bubblesRef.current.forEach(b => {
+        b.fromColor = b.color;
+        b.toColor = mainColor;
+      });
+    } else {
+      bubblesRef.current.forEach(b => {
+        b.fromColor = b.color;
+        b.toColor = b.originalColor;
+      });
+    }
+    transitionProgressRef.current = 0;
+    lastTransitionTimeRef.current = performance.now();
+    // 不要在这里 requestAnimationFrame(draw)
+  }, [mainColor]);
+
+  // draw 只初始化一次，持续 requestAnimationFrame
+  useEffect(() => {
+    if (!canvasRef.current) return;
     let dpr = window.devicePixelRatio || 1;
     let width = window.innerWidth, height = window.innerHeight;
+    const canvas = canvasRef.current;
     canvas.width = width * dpr;
     canvas.height = height * dpr;
     canvas.style.width = width + 'px';
@@ -68,17 +91,33 @@ const BgEffect = React.memo(({ mainColor, animStart, animating, setAnimating, se
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     let running = true;
-    // 初始化五色泡泡
     if (!bubblesRef.current || bubblesRef.current.length === 0) {
       bubblesRef.current = Array.from({ length: 36 }, (_, i) => genBubble(i));
     }
-    function draw() {
+    function draw(now) {
       ctx.clearRect(0, 0, width, height);
       let bubbles = bubblesRef.current;
+      // 动画进度
+      if (transitionProgressRef.current < 1) {
+        const last = lastTransitionTimeRef.current || now;
+        const elapsed = now - last;
+        let progress = Math.min(transitionProgressRef.current + elapsed / transitionDuration, 1);
+        transitionProgressRef.current = progress;
+        lastTransitionTimeRef.current = now;
+      }
       for (let i = 0; i < bubbles.length; i++) {
         let b = bubbles[i];
-        let drawColor = mainColor ? mainColor : b.originalColor;
-        b.color = drawColor;
+        let drawColor;
+        if (b.fromColor && b.toColor && transitionProgressRef.current < 1) {
+          drawColor = lerpColor(b.fromColor, b.toColor, transitionProgressRef.current);
+          b.color = drawColor;
+        } else if (mainColor) {
+          drawColor = mainColor;
+          b.color = drawColor;
+        } else {
+          drawColor = b.originalColor;
+          b.color = drawColor;
+        }
         b.themeColor = mainColor || null;
         b.x += b.dx + Math.sin(Date.now() / 2000 + b.phase) * 0.08;
         b.y += b.dy;
@@ -88,8 +127,8 @@ const BgEffect = React.memo(({ mainColor, animStart, animating, setAnimating, se
         ctx.globalAlpha = b.alpha;
         ctx.beginPath();
         ctx.arc(floatX, floatY, b.r, 0, Math.PI * 2);
-        ctx.fillStyle = drawColor;
-        ctx.shadowColor = drawColor + '40';
+        ctx.fillStyle = b.color;
+        ctx.shadowColor = b.color + '40';
         ctx.shadowBlur = 24;
         ctx.fill();
         ctx.restore();
@@ -97,9 +136,20 @@ const BgEffect = React.memo(({ mainColor, animStart, animating, setAnimating, se
         if (b.x - b.r > width) b.x = -b.r;
         if (b.x + b.r < 0) b.x = width + b.r;
       }
-      if (running) requestAnimationFrame(draw);
+      // 动画结束后锁定颜色并清空 fromColor/toColor
+      if (transitionProgressRef.current >= 1) {
+        for (let i = 0; i < bubbles.length; i++) {
+          let b = bubbles[i];
+          b.color = b.toColor;
+          b.fromColor = null;
+          b.toColor = null;
+        }
+      }
+      if (running) {
+        animationFrameRef.current = requestAnimationFrame(draw);
+      }
     }
-    draw();
+    animationFrameRef.current = requestAnimationFrame(draw);
     function handleResize() {
       width = window.innerWidth;
       height = window.innerHeight;
@@ -112,6 +162,7 @@ const BgEffect = React.memo(({ mainColor, animStart, animating, setAnimating, se
     return () => {
       running = false;
       window.removeEventListener('resize', handleResize);
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
   }, [mainColor]);
   // 颜色插值

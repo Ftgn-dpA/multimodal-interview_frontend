@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { startInterview, endInterview, deleteInterviewRecord } from '../api';
 import api from '../api';
@@ -14,6 +14,7 @@ import styles from './Interview.module.css';
 import { showToast } from '../utils/toast';
 import MediaRecorderComponent from '../components/MediaRecorder.jsx';
 import { RTCPlayer } from '../libs/rtcplayer.esm.js';
+import { BgEffectContext } from '../App';
 
 // AI面试官WebRTC视频组件
 const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avatarLoading }) => {
@@ -201,6 +202,7 @@ const Interview = () => {
   const [avatarInput, setAvatarInput] = useState("");
   const [avatarLoading, setAvatarLoading] = useState(false);
   const userVideoRef = useRef(null);
+  const { resetColors } = useContext(BgEffectContext);
 
   // 页面加载时直接打开摄像头，创建面试记录，并自动启动虚拟人
   useEffect(() => {
@@ -352,6 +354,8 @@ const Interview = () => {
         // 可选：提示删除失败，但不影响跳转
       }
     }
+    // 重置泡泡颜色
+    resetColors();
     navigate('/interview-types');
   };
 

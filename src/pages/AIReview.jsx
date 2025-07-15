@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { removeToken } from '../utils/auth';
 import { getInterviewRecord } from '../api';
@@ -8,6 +8,7 @@ import Tag from '../components/ui/Tag';
 import { Title, Text, Paragraph } from '../components/ui/Typography';
 import Toast from '../components/ui/Toast';
 import Loading from '../components/ui/Loading';
+import { BgEffectContext } from '../App';
 
 // 能力雷达图组件（自定义进度条）
 const SkillRadarChart = ({ skillData }) => {
@@ -167,6 +168,7 @@ const AIReview = () => {
   const showToast = (message, type = 'info') => {
     setToast({ visible: true, message, type });
   };
+  const { resetColors } = useContext(BgEffectContext);
 
   useEffect(() => {
     if (recordId) {
@@ -216,7 +218,10 @@ const AIReview = () => {
     return (
       <div style={{ minHeight: '100vh', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <Text type="danger" style={{ fontSize: 18, marginBottom: 24 }}>{error}</Text>
-        <Button type="primary" size="large" onClick={() => navigate('/interview-types')} style={{ borderRadius: 12, height: 48, fontSize: 16, minWidth: 160 }}>返回面试类型</Button>
+        <Button type="primary" size="large" onClick={() => {
+          resetColors();
+          navigate('/interview-types');
+        }} style={{ borderRadius: 12, height: 48, fontSize: 16, minWidth: 160 }}>返回面试类型</Button>
       </div>
     );
   }
@@ -307,7 +312,10 @@ const AIReview = () => {
 
         {/* 操作按钮 */}
         <div style={{ textAlign: 'center', marginTop: '40px', padding: '24px', background: '#fff', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'center', gap: '32px' }}>
-          <Button size="large" onClick={() => navigate('/interview-types')} style={{ height: '48px', padding: '0 32px', borderRadius: '12px', fontSize: 16, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', fontWeight: 500, transition: 'all 0.3s', minWidth: 160 }}>
+          <Button size="large" onClick={() => {
+            resetColors();
+            navigate('/interview-types');
+          }} style={{ height: '48px', padding: '0 32px', borderRadius: '12px', fontSize: 16, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', fontWeight: 500, transition: 'all 0.3s', minWidth: 160 }}>
             返回主页
           </Button>
         </div>
