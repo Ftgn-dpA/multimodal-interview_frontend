@@ -15,84 +15,120 @@ import { showToast } from '../utils/toast';
 import MediaRecorderComponent from '../components/MediaRecorder.jsx';
 import { RTCPlayer } from '../libs/rtcplayer.esm.js';
 import { BgEffectContext } from '../App';
+import axios from 'axios';
 
 // AI面试官WebRTC视频组件
-const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avatarLoading }) => {
+const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avatarLoading, onPlayerReady, onPlayerFail }) => {
   const wrapperRef = useRef(null);
   const playerRef = useRef(null);
   const [playNotAllowed, setPlayNotAllowed] = useState(false);
+  // 新增：拉流重试
+  const maxRetry = 5;
+  const retryCountRef = useRef(0);
+  const retryTimeoutRef = useRef(null);
+  // 新增：currentTime检测
+  const currentTimeCheckTimeout = useRef(null);
 
   useEffect(() => {
-    console.log('【AIInterviewerVideo useEffect】streamInfo:', streamInfo);
-    if (streamInfo) {
-      console.log('【AIInterviewerVideo useEffect】stream_url:', streamInfo.stream_url);
-      console.log('【AIInterviewerVideo useEffect】api_url:', streamInfo.api_url);
-      if (!streamInfo.stream_url) {
-        console.error('【AIInterviewerVideo useEffect】stream_url为空或未定义！', streamInfo);
-      }
-    } else {
-      console.error('【AIInterviewerVideo useEffect】streamInfo为null或undefined！');
-    }
-    
-    if (streamInfo && streamInfo.stream_url && streamInfo.session) {
-      // 销毁旧实例
+    let stopped = false;
+    const tryPlay = () => {
+      if (stopped) return;
       if (playerRef.current) {
         playerRef.current.stop();
         playerRef.current = null;
       }
-      // 创建新实例
-      const player = new RTCPlayer();
-      player.playerType = 6; // WebRTC 模式
-      player.container = wrapperRef.current;
-      // 使播放器与外层方框完全一致，16:9比例
-      player.videoSize = { width: 720, height: 405 };
-      player.stream = {
-        sid: streamInfo.session,
-        streamUrl: streamInfo.stream_url
-      };
-      console.log('【AIInterviewerVideo useEffect】RTCPlayer配置完成', player.stream);
-      player
-        .on('play', () => console.log('sdk event: player play'))
-        .on('waiting', () => console.log('sdk event: player waiting'))
-        .on('playing', () => console.log('sdk event: player playing'))
-        .on('not-allowed', () => {
+      if (streamInfo && streamInfo.stream_url && streamInfo.session) {
+        const player = new RTCPlayer();
+        player.playerType = 6;
+        player.container = wrapperRef.current;
+        player.videoSize = { width: 720, height: 405 };
+        player.stream = {
+          sid: streamInfo.session,
+          streamUrl: streamInfo.stream_url
+        };
+        player
+          .on('play', () => console.log('sdk event: player play'))
+          .on('waiting', () => console.log('sdk event: player waiting'))
+          .on('playing', () => {
+            console.log('sdk event: player playing');
+            // currentTime检测
+            const video = wrapperRef.current?.querySelector('video');
+            if (video) {
+              let lastTime = video.currentTime;
+              if (currentTimeCheckTimeout.current) clearTimeout(currentTimeCheckTimeout.current);
+              currentTimeCheckTimeout.current = setTimeout(() => {
+                if (video.currentTime > lastTime + 0.1) {
+                  // 说明真的在播放
+                  if (onPlayerReady) onPlayerReady();
+                } else {
+                  // 可能黑屏/无流
+                  if (onPlayerFail) onPlayerFail();
+                }
+              }, 2000); // 2秒后检测
+            } else {
+              // 没有video标签，直接判定失败
+              if (onPlayerFail) onPlayerFail();
+            }
+            retryCountRef.current = 0;
+          })
+          .on('not-allowed', () => {
+            setPlayNotAllowed(true);
+            console.log('sdk event: play not allowed, muted play');
+          })
+          .on('error', err => {
+            console.error('sdk event: error', err);
+            setPlayNotAllowed(true);
+            // 拉流失败重试
+            if (retryCountRef.current < maxRetry) {
+              retryCountRef.current++;
+              retryTimeoutRef.current = setTimeout(tryPlay, 1000);
+            } else {
+              if (onPlayerFail) onPlayerFail();
+            }
+          });
+        try {
+          player.play();
+          playerRef.current = player;
+          setTimeout(() => {
+            const video = wrapperRef.current?.querySelector('video');
+            if (video) {
+              video.style.width = '100%';
+              video.style.height = '100%';
+              video.style.objectFit = 'contain';
+              video.style.borderRadius = '24px';
+              video.style.background = '#18181c';
+              video.style.padding = '0';
+              video.style.display = 'block';
+              video.style.margin = '0 auto';
+            }
+          }, 500);
+        } catch (error) {
+          console.error('RTCPlayer播放失败:', error);
           setPlayNotAllowed(true);
-          console.log('sdk event: play not allowed, muted play');
-        })
-        .on('error', err => {
-          console.error('sdk event: error', err);
-          setPlayNotAllowed(true);
-        });
-      try {
-        player.play();
-        playerRef.current = player;
-        // 让video内容左右居中，高度与播放器一致
-        setTimeout(() => {
-          const video = wrapperRef.current?.querySelector('video');
-          if (video) {
-            video.style.width = '100%';
-            video.style.height = '100%';
-            video.style.objectFit = 'contain';
-            video.style.borderRadius = '24px';
-            video.style.background = '#18181c';
-            video.style.padding = '0';
-            video.style.display = 'block';
-            video.style.margin = '0 auto';
+          if (retryCountRef.current < maxRetry) {
+            retryCountRef.current++;
+            retryTimeoutRef.current = setTimeout(tryPlay, 1000);
+          } else {
+            if (onPlayerFail) onPlayerFail();
           }
-        }, 500);
-        console.log('【AIInterviewerVideo useEffect】RTCPlayer开始播放');
-      } catch (error) {
-        console.error('【AIInterviewerVideo useEffect】RTCPlayer播放失败:', error);
-        setPlayNotAllowed(true);
+        }
       }
-    } else {
-      console.error('stream_url 或 session 无效', streamInfo);
+    };
+    if (streamInfo && streamInfo.stream_url && streamInfo.session) {
+      retryCountRef.current = 0;
+      tryPlay();
     }
-    
     return () => {
+      stopped = true;
       if (playerRef.current) {
         playerRef.current.stop();
         playerRef.current = null;
+      }
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+      if (currentTimeCheckTimeout.current) {
+        clearTimeout(currentTimeCheckTimeout.current);
       }
     };
   }, [streamInfo]);
@@ -204,6 +240,10 @@ const Interview = () => {
   const userVideoRef = useRef(null);
   const { resetColors } = useContext(BgEffectContext);
 
+  // 新增：虚拟人拉流成功/失败提示
+  const [avatarReady, setAvatarReady] = useState(false);
+  const [avatarFail, setAvatarFail] = useState(false);
+
   // 页面加载时直接打开摄像头，创建面试记录，并自动启动虚拟人
   useEffect(() => {
     console.log('Interview useEffect called', new Date().toISOString());
@@ -247,7 +287,6 @@ const Interview = () => {
             
             if (isMounted) {
               setStreamInfo(info);
-              showToast('虚拟人已启动', 'info');
             }
           } catch (error) {
             console.error('自动启动虚拟人失败:', error);
@@ -420,17 +459,45 @@ const Interview = () => {
     };
   }, [streamInfo?.session]);
 
-  // 虚拟人加载完成后弹出Toast
-  useEffect(() => {
-    if (!avatarLoading && streamInfo && streamInfo.session && streamInfo.stream_url) {
-      showToast('虚拟人已启动', 'info');
+  // 音频文件上传测试（选择+发送）
+  const [audioFile, setAudioFile] = useState(null);
+  const [audioUploading, setAudioUploading] = useState(false);
+  const handleFileChange = (e) => {
+    setAudioFile(e.target.files[0]);
+  };
+  const handleSendAudio = async () => {
+    // 修正：用streamInfo.session作为sessionId
+    if (!audioFile || !streamInfo?.session) {
+      showToast('请先启动虚拟人并选择音频文件', 'warning');
+      console.log('[音频发送] 缺少音频文件或sessionId', { audioFile, sessionId: streamInfo?.session, streamInfo });
+      return;
     }
-    // eslint-disable-next-line
-  }, [avatarLoading, streamInfo]);
+    setAudioUploading(true);
+    const formData = new FormData();
+    formData.append('sessionId', streamInfo.session);
+    formData.append('audio', audioFile);
+    console.log('[音频发送] 开始上传', { sessionId: streamInfo.session, file: audioFile, streamInfo });
+    try {
+      const res = await axios.post('/api/avatar/audio-interact', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      console.log('[音频发送] 上传成功', res.data);
+      showToast(res.data.msg || '上传成功', 'success');
+      setAudioFile(null);
+    } catch (err) {
+      console.log('[音频发送] 上传失败', err);
+      showToast('上传失败: ' + (err?.response?.data?.msg || err.message), 'error');
+    } finally {
+      setAudioUploading(false);
+    }
+  };
 
   return (
     <div className="glass-effect" style={{ minHeight: '100vh' }}>
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, visible: false })} />
+      {/* 拉流成功/失败提示 */}
+      {avatarReady && <div style={{ position: 'fixed', top: 80, left: 0, right: 0, zIndex: 9999, textAlign: 'center' }}><Toast visible={true} message="虚拟人已启动" type="success" /></div>}
+      {avatarFail && <div style={{ position: 'fixed', top: 80, left: 0, right: 0, zIndex: 9999, textAlign: 'center' }}><Toast visible={true} message="虚拟人拉流失败，请重试或检查网络" type="error" /></div>}
       {loading && <Loading />}
       {/* Header 区域 */}
       <div style={{
@@ -474,7 +541,19 @@ const Interview = () => {
           {/* 视频区整体容器 */}
           <div style={{ width: '100%', maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             {/* AI面试官视频 */}
-            <AIInterviewerVideo subtitle={question} streamInfo={streamInfo} avatarLoading={avatarLoading} />
+            <AIInterviewerVideo
+              showSubtitle={question}
+              subtitle={question}
+              streamInfo={streamInfo}
+              avatarLoading={avatarLoading}
+              onPlayerReady={() => {
+                if (!avatarReady) {
+                  setAvatarReady(true);
+                  setAvatarFail(false);
+                }
+              }}
+              onPlayerFail={() => { setAvatarFail(true); setAvatarReady(false); }}
+            />
             {/* 面试者视频，紧贴AI面试官视频下方 */}
             <div className={styles.userVideoArea} style={{ marginTop: 16 }}>
               {userStream ? (
@@ -531,6 +610,15 @@ const Interview = () => {
             )}
           </div>
         </div>
+        {/* 音频文件上传测试入口（选择+发送） */}
+        <Card style={{ margin: '24px auto', maxWidth: 420 }}>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>音频交互接口测试</div>
+          <input type="file" accept="audio/*" onChange={handleFileChange} disabled={audioUploading} />
+          <Button onClick={handleSendAudio} disabled={!audioFile || audioUploading} style={{ marginTop: 8 }}>
+            发送
+          </Button>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>需先启动虚拟人，上传16k 16bit单声道音频</div>
+        </Card>
       </div>
       {/* 结束面试确认弹窗 */}
       <Modal
