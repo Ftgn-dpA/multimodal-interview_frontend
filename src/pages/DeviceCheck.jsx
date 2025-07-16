@@ -64,6 +64,8 @@ const DeviceCheck = () => {
   // 画音频波形
   useEffect(() => {
     let animationId;
+    let prevDataArray = null;
+    const SMOOTHING = 0.96; // 变化更慢，越大越平滑
     const draw = () => {
       if (!analyser || !canvasRef.current) return;
       const canvas = canvasRef.current;
@@ -71,30 +73,65 @@ const DeviceCheck = () => {
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
       analyser.getByteTimeDomainData(dataArray);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.beginPath();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = '#3b82f6';
-      const sliceWidth = canvas.width / bufferLength;
-      let x = 0;
-      let isSilent = true;
-      for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = (v * canvas.height) / 2;
-        if (dataArray[i] !== 128) isSilent = false;
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
+      // 平滑处理
+      if (!prevDataArray) {
+        prevDataArray = new Float32Array(bufferLength);
+        for (let i = 0; i < bufferLength; i++) {
+          prevDataArray[i] = dataArray[i];
         }
-        x += sliceWidth;
+      } else {
+        for (let i = 0; i < bufferLength; i++) {
+          prevDataArray[i] = prevDataArray[i] * SMOOTHING + dataArray[i] * (1 - SMOOTHING);
+        }
       }
-      ctx.lineTo(canvas.width, canvas.height / 2);
-      ctx.stroke();
-      if (isSilent) {
-        ctx.font = '12px sans-serif';
-        ctx.fillStyle = '#94a3b8';
-        ctx.fillText('无音频输入', 60, 20);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // 柱状条可视化（圆角柱，数量更少，宽度更大，变化更慢）
+      const barCount = 16; // 柱条数量减少
+      const barWidth = canvas.width / barCount * 0.7; // 宽度更大
+      const barGap = canvas.width / barCount * 0.3; // 柱子间距
+      const minBarHeight = canvas.height * 0.2;
+      for (let i = 0; i < barCount; i++) {
+        // 取每段的最大值
+        const start = Math.floor(i * bufferLength / barCount);
+        const end = Math.floor((i + 1) * bufferLength / barCount);
+        let max = 128;
+        for (let j = start; j < end; j++) {
+          if (prevDataArray[j] > max) max = prevDataArray[j];
+        }
+        const v = max / 128.0;
+        // 增大变化幅度（如放大1.6倍，最大不超过画布高度）
+        let barHeight = Math.abs(v - 1) * canvas.height * 2.0;
+        if (barHeight > canvas.height) barHeight = canvas.height;
+        // 判断当前柱条区间是否有明显音频输入
+        let isSilentBar = true;
+        for (let j = start; j < end; j++) {
+          if (Math.abs(prevDataArray[j] - 128) > 4) {
+            isSilentBar = false;
+            break;
+          }
+        }
+        if (isSilentBar) {
+          barHeight = minBarHeight;
+        } else if (barHeight < minBarHeight) {
+          barHeight = minBarHeight + (barHeight - minBarHeight) * 0.5; // 轻微抬高，防止动效丢失
+        }
+        const x = i * (barWidth + barGap);
+        const y = (canvas.height - barHeight) / 2;
+        ctx.fillStyle = '#3b82f6';
+        const radius = Math.min(barWidth, barHeight) / 2;
+        // 画圆角矩形
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + barWidth - radius, y);
+        ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + radius);
+        ctx.lineTo(x + barWidth, y + barHeight - radius);
+        ctx.quadraticCurveTo(x + barWidth, y + barHeight, x + barWidth - radius, y + barHeight);
+        ctx.lineTo(x + radius, y + barHeight);
+        ctx.quadraticCurveTo(x, y + barHeight, x, y + barHeight - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        ctx.fill();
       }
       animationId = requestAnimationFrame(draw);
     };
@@ -103,6 +140,7 @@ const DeviceCheck = () => {
     }
     return () => {
       if (animationId) cancelAnimationFrame(animationId);
+      prevDataArray = null;
     };
   }, [analyser]);
 
