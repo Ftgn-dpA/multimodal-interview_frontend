@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { startInterview, endInterview, deleteInterviewRecord } from '../api';
 import api from '../api';
-import Toast from '../components/ui/Toast';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Tag from '../components/ui/Tag';
@@ -11,11 +10,13 @@ import Loading from '../components/ui/Loading';
 import Modal from '../components/ui/Modal';
 import { removeToken } from '../utils/auth';
 import styles from './Interview.module.css';
-import { showToast } from '../utils/toast';
 import MediaRecorderComponent from '../components/MediaRecorder.jsx';
 import { RTCPlayer } from '../libs/rtcplayer.esm.js';
 import { BgEffectContext } from '../App';
 import axios from 'axios';
+import AudioRecorder from '../components/AudioRecorder.jsx';
+import Toast from '../components/ui/Toast';
+import { showToast as showToastUtil } from '../utils/toast';
 
 // AI面试官WebRTC视频组件
 const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avatarLoading, onPlayerReady, onPlayerFail }) => {
@@ -23,7 +24,7 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avat
   const playerRef = useRef(null);
   const [playNotAllowed, setPlayNotAllowed] = useState(false);
   // 新增：拉流重试
-  const maxRetry = 5;
+  const maxRetry = 16; // 拉流最大重试次数，0.5秒间隔共8秒
   const retryCountRef = useRef(0);
   const retryTimeoutRef = useRef(null);
   // 新增：currentTime检测
@@ -81,7 +82,7 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avat
             // 拉流失败重试
             if (retryCountRef.current < maxRetry) {
               retryCountRef.current++;
-              retryTimeoutRef.current = setTimeout(tryPlay, 1000);
+              retryTimeoutRef.current = setTimeout(tryPlay, 500); // 拉流重试间隔缩短为0.5秒
             } else {
               if (onPlayerFail) onPlayerFail();
             }
@@ -107,7 +108,7 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avat
           setPlayNotAllowed(true);
           if (retryCountRef.current < maxRetry) {
             retryCountRef.current++;
-            retryTimeoutRef.current = setTimeout(tryPlay, 1000);
+            retryTimeoutRef.current = setTimeout(tryPlay, 500); // 拉流重试间隔缩短为0.5秒
           } else {
             if (onPlayerFail) onPlayerFail();
           }
@@ -171,7 +172,7 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avat
         />
         {/* 加载动画：虚拟人加载中且未就绪时显示 */}
         {avatarLoading && (!streamInfo || !streamInfo.stream_url) && (
-          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, background: 'rgba(24,24,28,0.7)' }}>
             <div style={{ width: 72, height: 72, border: '6px solid #fff', borderTop: '6px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
           </div>
         )}
@@ -225,6 +226,9 @@ const Interview = () => {
   const { type } = useParams();
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
+  const showToast = (message, type = 'info') => {
+    setToast({ visible: true, message, type });
+  };
   const [question, setQuestion] = useState('');
   const [recordId, setRecordId] = useState(null);
   const [interviewInfo, setInterviewInfo] = useState(null);
@@ -341,10 +345,6 @@ const Interview = () => {
     return `${h}:${m}:${s}`;
   };
 
-  const showToast = (message, type = 'info') => {
-    setToast({ visible: true, message, type });
-  };
-
   // 结束面试
   const handleEndInterview = async () => {
     setLoading(true);
@@ -459,33 +459,30 @@ const Interview = () => {
     };
   }, [streamInfo?.session]);
 
-  // 音频文件上传测试（选择+发送）
-  const [audioFile, setAudioFile] = useState(null);
+  // 新增：录音得到的音频 Blob
+  const [audioBlob, setAudioBlob] = useState(null);
+  // 新增：音频上传 loading 状态
   const [audioUploading, setAudioUploading] = useState(false);
-  const handleFileChange = (e) => {
-    setAudioFile(e.target.files[0]);
-  };
-  const handleSendAudio = async () => {
-    // 修正：用streamInfo.session作为sessionId
-    if (!audioFile || !streamInfo?.session) {
-      showToast('请先启动虚拟人并选择音频文件', 'warning');
-      console.log('[音频发送] 缺少音频文件或sessionId', { audioFile, sessionId: streamInfo?.session, streamInfo });
+
+  // 修改 handleSendAudio，支持直接用 audioBlob
+  const handleSendAudio = async (blob) => {
+    // blob 参数优先，兼容原有 audioFile
+    const audio = blob || audioBlob;
+    if (!audio || !streamInfo?.session) {
+      showToast('请先启动虚拟人并录音', 'warning');
       return;
     }
     setAudioUploading(true);
     const formData = new FormData();
     formData.append('sessionId', streamInfo.session);
-    formData.append('audio', audioFile);
-    console.log('[音频发送] 开始上传', { sessionId: streamInfo.session, file: audioFile, streamInfo });
+    formData.append('audio', audio, 'record.wav');
     try {
       const res = await axios.post('/api/avatar/audio-interact', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      console.log('[音频发送] 上传成功', res.data);
       showToast(res.data.msg || '上传成功', 'success');
-      setAudioFile(null);
+      setAudioBlob(null);
     } catch (err) {
-      console.log('[音频发送] 上传失败', err);
       showToast('上传失败: ' + (err?.response?.data?.msg || err.message), 'error');
     } finally {
       setAudioUploading(false);
@@ -494,10 +491,8 @@ const Interview = () => {
 
   return (
     <div className="glass-effect" style={{ minHeight: '100vh' }}>
-      <Toast visible={toast.visible} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, visible: false })} />
-      {/* 拉流成功/失败提示 */}
-      {avatarReady && <div style={{ position: 'fixed', top: 80, left: 0, right: 0, zIndex: 9999, textAlign: 'center' }}><Toast visible={true} message="虚拟人已启动" type="success" /></div>}
-      {avatarFail && <div style={{ position: 'fixed', top: 80, left: 0, right: 0, zIndex: 9999, textAlign: 'center' }}><Toast visible={true} message="虚拟人拉流失败，请重试或检查网络" type="error" /></div>}
+      {/* 移除所有 Toast 相关提示 */}
+      {/* 只在全局初始化时转圈，avatarLoading 时不全局转圈 */}
       {loading && <Loading />}
       {/* Header 区域 */}
       <div style={{
@@ -536,42 +531,39 @@ const Interview = () => {
         </div>
       </div>
       {/* 内容区域 */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', minHeight: 'calc(100vh - 64px)', padding: '40px 0' }}>
-        <div style={{ width: '100%', maxWidth: 900, position: 'relative' }}>
-          {/* 视频区整体容器 */}
-          <div style={{ width: '100%', maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            {/* AI面试官视频 */}
-            <AIInterviewerVideo
-              showSubtitle={question}
-              subtitle={question}
-              streamInfo={streamInfo}
-              avatarLoading={avatarLoading}
-              onPlayerReady={() => {
-                if (!avatarReady) {
-                  setAvatarReady(true);
-                  setAvatarFail(false);
-                }
-              }}
-              onPlayerFail={() => { setAvatarFail(true); setAvatarReady(false); }}
-            />
-            {/* 面试者视频，紧贴AI面试官视频下方 */}
-            <div className={styles.userVideoArea} style={{ marginTop: 16 }}>
-              {userStream ? (
-                <video
-                  ref={userVideoRef}
-                  autoPlay
-                  muted
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 24, background: '#000' }}
-                />
-              ) : (
-                <div style={{ color: '#64748b', textAlign: 'center', lineHeight: '120px', fontSize: 18 }}>摄像头未开启</div>
-              )}
-            </div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 'calc(100vh - 64px)', padding: '40px 0' }}>
+        <div style={{ width: '100%', maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          {/* AI面试官视频 */}
+          <AIInterviewerVideo
+            showSubtitle={question}
+            subtitle={question}
+            streamInfo={streamInfo}
+            avatarLoading={avatarLoading}
+            onPlayerReady={() => {
+              if (!avatarReady) {
+                setAvatarReady(true);
+                setAvatarFail(false);
+              }
+            }}
+            onPlayerFail={() => { setAvatarFail(true); setAvatarReady(false); }}
+          />
+          {/* 面试者视频，紧贴AI面试官视频下方 */}
+          <div className={styles.userVideoArea} style={{ marginTop: 16 }}>
+            {userStream ? (
+              <video
+                ref={userVideoRef}
+                autoPlay
+                muted
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 24, background: '#000' }}
+              />
+            ) : (
+              <div style={{ color: '#64748b', textAlign: 'center', lineHeight: '120px', fontSize: 18 }}>摄像头未开启</div>
+            )}
           </div>
           {/* 聊天输入区域 */}
-          <div className={styles.chatInputArea} style={{ 
-            width: '100%', 
-            maxWidth: 720, 
+          <div className={styles.chatInputArea} style={{
+            width: '100%',
+            maxWidth: 720,
             margin: '32px auto 0 auto',
             position: 'relative'
           }}>
@@ -609,16 +601,17 @@ const Interview = () => {
               </div>
             )}
           </div>
+          {/* 音频录音区域，放在主内容下方，单列居中 */}
+          <div style={{ width: '100%', maxWidth: 480, margin: '32px auto 0 auto' }}>
+            <AudioRecorder
+              onAudioData={blob => {
+                setAudioBlob(blob);
+                handleSendAudio(blob);
+              }}
+            />
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 4, textAlign: 'center' }}>需先启动虚拟人，录音后自动发送音频</div>
+          </div>
         </div>
-        {/* 音频文件上传测试入口（选择+发送） */}
-        <Card style={{ margin: '24px auto', maxWidth: 420 }}>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>音频交互接口测试</div>
-          <input type="file" accept="audio/*" onChange={handleFileChange} disabled={audioUploading} />
-          <Button onClick={handleSendAudio} disabled={!audioFile || audioUploading} style={{ marginTop: 8 }}>
-            发送
-          </Button>
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>需先启动虚拟人，上传16k 16bit单声道音频</div>
-        </Card>
       </div>
       {/* 结束面试确认弹窗 */}
       <Modal
@@ -646,6 +639,10 @@ const Interview = () => {
           直接退出将不会保存本次面试记录，也不会生成点评。确定要退出吗？
         </div>
       </Modal>
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, visible: false })} />
+      {/* 拉流成功/失败提示 */}
+      {avatarReady && <div style={{ position: 'fixed', top: 80, left: 0, right: 0, zIndex: 9999, textAlign: 'center' }}><Toast visible={true} message="虚拟人已启动" type="success" /></div>}
+      {avatarFail && <div style={{ position: 'fixed', top: 80, left: 0, right: 0, zIndex: 9999, textAlign: 'center' }}><Toast visible={true} message="虚拟人拉流失败，请重试或检查网络" type="error" /></div>}
     </div>
   );
 };
