@@ -56,11 +56,14 @@ export const interviewAPI = {
   // 开始指定类型的面试（返回recordId）
   startInterview: (type) => api.post(`/interview/start/${type}`),
   
-  // 结束面试（传recordId）
-  endInterview: (recordId, actualDuration) => {
+  // 结束面试（传recordId和sessionId）
+  endInterview: (recordId, actualDuration, sessionId) => {
     const params = new URLSearchParams();
     if (actualDuration !== undefined && actualDuration !== null) {
       params.append('actualDuration', actualDuration);
+    }
+    if (sessionId) {
+      params.append('sessionId', sessionId);
     }
     return api.post(`/interview/end/${recordId}?${params.toString()}`);
   },
@@ -99,12 +102,68 @@ export const interviewAPI = {
   },
 };
 
+// 虚拟人相关接口
+export const avatarAPI = {
+  // 启动虚拟人
+  startAvatar: () => api.post('/avatar/start'),
+  
+  // 发送消息给虚拟人
+  sendMessage: (sessionId, text, interviewRecordId) => {
+    const params = new URLSearchParams();
+    params.append('sessionId', sessionId);
+    params.append('text', text);
+    if (interviewRecordId) {
+      params.append('interviewRecordId', interviewRecordId);
+    }
+    return api.post(`/avatar/send?${params.toString()}`);
+  },
+  
+  // 音频交互
+  audioInteract: (sessionId, audioFile, interviewRecordId) => {
+    const formData = new FormData();
+    formData.append('sessionId', sessionId);
+    formData.append('audio', audioFile);
+    if (interviewRecordId) {
+      formData.append('interviewRecordId', interviewRecordId);
+    }
+    return api.post('/avatar/audio-interact', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  
+  // 停止虚拟人
+  stopAvatar: (sessionId) => api.post(`/avatar/stop?sessionId=${sessionId}`),
+};
+
+// AI回复相关接口
+export const aiResponseAPI = {
+  // 获取所有AI回复
+  getAllResponses: () => api.get('/ai-responses/all'),
+  
+  // 根据面试记录ID获取AI回复
+  getResponsesByInterview: (recordId) => api.get(`/ai-responses/interview/${recordId}`),
+  
+  // 根据会话ID获取AI回复
+  getResponsesBySession: (sessionId) => api.get(`/ai-responses/session/${sessionId}`),
+  
+  // 根据回复类型获取AI回复
+  getResponsesByType: (responseType) => api.get(`/ai-responses/type/${responseType}`),
+  
+  // 获取当前用户的AI回复
+  getMyResponses: () => api.get('/ai-responses/my'),
+  
+  // 统计某个面试记录的AI回复数量
+  countResponses: (recordId) => api.get(`/ai-responses/count/${recordId}`),
+};
+
 // 导出单个函数，方便直接使用
 export const getInterviewHistory = () => interviewAPI.getHistory();
 export const getInterviewRecord = (recordId) => interviewAPI.getInterviewRecord(recordId);
 export const getInterviewInfo = (type) => interviewAPI.getInterviewInfo(type);
 export const startInterview = (type) => interviewAPI.startInterview(type);
-export const endInterview = (recordId, actualDuration) => interviewAPI.endInterview(recordId, actualDuration);
+export const endInterview = (recordId, actualDuration, sessionId) => interviewAPI.endInterview(recordId, actualDuration, sessionId);
 export const uploadVideo = (recordId, videoFile) => interviewAPI.uploadVideo(recordId, videoFile);
 
 export const deleteInterviewRecord = (recordId) =>

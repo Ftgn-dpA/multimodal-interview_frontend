@@ -453,8 +453,8 @@ const Interview = () => {
       }
       
       // 4. 结束面试（生成报告）
-      console.log('结束面试，recordId:', newRecordId, '实际时长:', interviewSeconds, '秒');
-      await endInterview(newRecordId, interviewSeconds);
+      console.log('结束面试，recordId:', newRecordId, 'sessionId:', streamInfo?.session, '实际时长:', interviewSeconds, '秒');
+      await endInterview(newRecordId, interviewSeconds, streamInfo?.session);
       showToast('面试已结束', 'success');
       
       // 5. 清理资源
@@ -502,7 +502,18 @@ const Interview = () => {
       return;
     }
     try {
-      const res = await api.post(`/avatar/send?sessionId=${streamInfo.session}&text=${encodeURIComponent(text)}`);
+      // 构建请求参数
+      const params = new URLSearchParams();
+      params.append('sessionId', streamInfo.session);
+      params.append('text', text);
+      if (recordId) {
+        params.append('interviewRecordId', recordId);
+        console.log('[Interview] 发送文字消息，recordId:', recordId);
+      } else {
+        console.log('[Interview] 发送文字消息，recordId为空');
+      }
+      
+      const res = await api.post(`/avatar/send?${params.toString()}`);
       const data = res.data;
       if (data.status === 'ok') {
         showToast(data.msg, 'info');
@@ -685,8 +696,14 @@ const Interview = () => {
     const formData = new FormData();
     formData.append('sessionId', streamInfo.session);
     formData.append('audio', audio, 'record.wav');
+    if (recordId) {
+      formData.append('interviewRecordId', recordId);
+      console.log('[Interview] 发送音频消息，recordId:', recordId);
+    } else {
+      console.log('[Interview] 发送音频消息，recordId为空');
+    }
     try {
-      const res = await axios.post('/api/avatar/audio-interact', formData, {
+      const res = await api.post('/avatar/audio-interact', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       showToast(res.data.msg || '上传成功', 'success');
@@ -709,6 +726,8 @@ const Interview = () => {
     };
     return positionMap[type] || '技术工程师';
   };
+
+
 
   return (
     <div className="glass-effect" style={{ minHeight: '100vh' }}>
@@ -874,6 +893,7 @@ const Interview = () => {
           直接退出将不会保存本次面试记录，也不会生成点评。确定要退出吗？
         </div>
       </Modal>
+
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, visible: false })} />
     </div>
   );
