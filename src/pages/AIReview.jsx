@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { removeToken } from '../utils/auth';
 import { getInterviewRecord } from '../api';
 import Button from '../components/ui/Button';
@@ -140,25 +140,80 @@ const ImprovementSuggestions = ({ suggestions }) => {
 };
 
 // 工具函数：格式化时长
-const formatDuration = (startTime, endTime) => {
-  if (!startTime || !endTime) return '未知';
-  const seconds = Math.floor((new Date(endTime) - new Date(startTime)) / 1000);
-  if (isNaN(seconds) || seconds < 0) return '未知';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  if (h > 0) {
-    return `${h}小时${m}分${s}秒`;
-  } else if (m > 0) {
-    return `${m}分${s}秒`;
-  } else {
-    return `${s}秒`;
+const formatDuration = (startTime, endTime, currentTime = new Date(), actualDuration = null) => {
+  // 优先使用传递的实际面试时长
+  if (actualDuration !== null && actualDuration > 0) {
+    const h = Math.floor(actualDuration / 3600);
+    const m = Math.floor((actualDuration % 3600) / 60);
+    const s = actualDuration % 60;
+    
+    let result = '';
+    if (h > 0) {
+      result = `${h}小时${m}分${s}秒`;
+    } else if (m > 0) {
+      result = `${m}分${s}秒`;
+    } else {
+      result = `${s}秒`;
+    }
+    
+    return result;
+  }
+  
+  // 如果没有传递时长，则使用后端时间计算
+  if (!startTime) {
+    return '未知';
+  }
+  
+  try {
+    // 确保开始时间格式正确
+    const start = new Date(startTime);
+    
+    if (isNaN(start.getTime())) {
+      return '未知';
+    }
+    
+    // 如果没有结束时间，使用传入的当前时间或当前时间
+    const end = endTime ? new Date(endTime) : currentTime;
+    
+    if (isNaN(end.getTime())) {
+      return '未知';
+    }
+    
+    const seconds = Math.floor((end - start) / 1000);
+    
+    if (seconds < 0) {
+      return '未知';
+    }
+    
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    
+    let result = '';
+    if (h > 0) {
+      result = `${h}小时${m}分${s}秒`;
+    } else if (m > 0) {
+      result = `${m}分${s}秒`;
+    } else {
+      result = `${s}秒`;
+    }
+    
+    // 如果没有结束时间，添加标识
+    if (!endTime) {
+      result += ' (进行中)';
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('格式化时长时出错:', error);
+    return '未知';
   }
 };
 
 const AIReview = () => {
   const { recordId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [interviewData, setInterviewData] = useState(null);
   const [error, setError] = useState(null);
@@ -169,6 +224,13 @@ const AIReview = () => {
     setToast({ visible: true, message, type });
   };
   const { resetColors } = useContext(BgEffectContext);
+  
+  // 新增：从URL参数获取面试时长
+  const urlDuration = searchParams.get('duration');
+  const [actualDuration, setActualDuration] = useState(urlDuration ? parseInt(urlDuration) : null);
+  
+  // 新增：实时更新面试时长的状态
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     if (recordId) {
@@ -176,11 +238,35 @@ const AIReview = () => {
     }
   }, [recordId]);
 
+  // 新增：实时更新当前时间，用于计算进行中的面试时长
+  useEffect(() => {
+    // 如果面试没有结束时间，说明还在进行中，需要实时更新
+    // 但如果有传递的时长，则不需要实时更新
+    if (interviewData && !interviewData.endTime && !actualDuration) {
+      const timer = setInterval(() => {
+        setCurrentTime(new Date());
+      }, 1000);
+      
+      return () => clearInterval(timer);
+    }
+  }, [interviewData?.endTime, actualDuration]);
+
   const loadInterviewData = async () => {
     try {
       setLoading(true);
       const response = await getInterviewRecord(recordId);
+      console.log('后端返回的面试数据:', response.data);
+      console.log('后端返回的actualDuration:', response.data?.actualDuration);
       setInterviewData(response.data);
+      
+      // 使用后端返回的时长数据
+      if (response.data?.actualDuration) {
+        setActualDuration(response.data.actualDuration);
+        console.log('使用后端返回的actualDuration:', response.data.actualDuration);
+      } else if (urlDuration) {
+        setActualDuration(parseInt(urlDuration));
+        console.log('使用URL参数中的duration:', urlDuration);
+      }
     } catch (error) {
       console.error('加载面试数据失败:', error);
       setError('加载面试数据失败');
@@ -250,6 +336,15 @@ const AIReview = () => {
 
   return (
     <div className="glass-effect" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <style>
+        {`
+          @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+          }
+        `}
+      </style>
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
       <Card id="ai-review-main-card" style={{ maxWidth: 1200, padding: '32px', margin: '40px auto' }}>
         {/* 页面标题 */}
@@ -277,7 +372,24 @@ const AIReview = () => {
               </div>
               <div style={{ flex: 1, minWidth: 180 }}>
                 <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>面试时长</div>
-                <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 22 }}>{formatDuration(interviewData.startTime, interviewData.endTime)}</div>
+                <div style={{ 
+                  color: '#f59e0b', 
+                  fontWeight: 700, 
+                  fontSize: 22,
+                  animation: (!interviewData?.endTime && !actualDuration) ? 'pulse 2s infinite' : 'none'
+                }}>
+                  {formatDuration(interviewData?.startTime, interviewData?.endTime, currentTime, actualDuration)}
+                </div>
+              </div>
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>面试状态</div>
+                <div style={{ 
+                  color: (interviewData?.endTime || actualDuration) ? '#10b981' : '#f59e0b', 
+                  fontWeight: 700, 
+                  fontSize: 20 
+                }}>
+                  {(interviewData?.endTime || actualDuration) ? '已完成' : '进行中'}
+                </div>
               </div>
               <div style={{ flex: 1, minWidth: 180 }}>
                 <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>AI模型</div>

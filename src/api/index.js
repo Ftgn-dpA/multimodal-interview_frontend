@@ -50,11 +50,20 @@ export const interviewAPI = {
   // 获取面试类型列表
   getInterviewTypes: () => api.get('/interview/types'),
   
+  // 获取面试信息（不创建记录）
+  getInterviewInfo: (type) => api.get(`/interview/info/${type}`),
+  
   // 开始指定类型的面试（返回recordId）
   startInterview: (type) => api.post(`/interview/start/${type}`),
   
   // 结束面试（传recordId）
-  endInterview: (recordId) => api.post(`/interview/end/${recordId}`),
+  endInterview: (recordId, actualDuration) => {
+    const params = new URLSearchParams();
+    if (actualDuration !== undefined && actualDuration !== null) {
+      params.append('actualDuration', actualDuration);
+    }
+    return api.post(`/interview/end/${recordId}?${params.toString()}`);
+  },
   
   // 上传面试视频
   uploadVideo: (recordId, videoFile) => {
@@ -93,8 +102,9 @@ export const interviewAPI = {
 // 导出单个函数，方便直接使用
 export const getInterviewHistory = () => interviewAPI.getHistory();
 export const getInterviewRecord = (recordId) => interviewAPI.getInterviewRecord(recordId);
+export const getInterviewInfo = (type) => interviewAPI.getInterviewInfo(type);
 export const startInterview = (type) => interviewAPI.startInterview(type);
-export const endInterview = (recordId) => interviewAPI.endInterview(recordId);
+export const endInterview = (recordId, actualDuration) => interviewAPI.endInterview(recordId, actualDuration);
 export const uploadVideo = (recordId, videoFile) => interviewAPI.uploadVideo(recordId, videoFile);
 
 export const deleteInterviewRecord = (recordId) =>

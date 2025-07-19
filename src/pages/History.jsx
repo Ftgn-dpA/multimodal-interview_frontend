@@ -104,10 +104,9 @@ const History = () => {
     navigate(`/ai-review/${record.id}`);
   };
 
-  const formatDurationFull = (startTime, endTime) => {
-    if (!startTime || !endTime) return '';
-    const seconds = Math.floor((new Date(endTime) - new Date(startTime)) / 1000);
-    if (isNaN(seconds) || seconds < 0) return '';
+  const formatDurationFull = (actualDuration) => {
+    if (!actualDuration || actualDuration <= 0) return '';
+    const seconds = actualDuration;
     const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
     const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
     const s = String(seconds % 60).padStart(2, '0');
@@ -360,19 +359,19 @@ const History = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontSize: '16px', color: '#64748b' }}>⏰</span>
                           <div>
-                            <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>开始时间</Text>
+                            <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>结束时间</Text>
                             <Text style={{ fontSize: '14px', color: '#475569', fontWeight: 500 }}>
-                              {formatDateTime(r.startTime)}
+                              {formatDateTime(r.createdAt)}
                             </Text>
                           </div>
                         </div>
-                        {r.duration && (
+                        {r.actualDuration && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <span style={{ fontSize: '16px', color: '#64748b' }}>⏰</span>
                             <div>
                               <Text style={{ fontSize: '12px', color: '#94a3b8', display: 'block' }}>面试时长</Text>
                               <Text style={{ fontSize: '14px', color: '#475569', fontWeight: 500 }}>
-                                {formatDurationFull(r.startTime, r.endTime)}
+                                {formatDurationFull(r.actualDuration)}
                               </Text>
                             </div>
                           </div>

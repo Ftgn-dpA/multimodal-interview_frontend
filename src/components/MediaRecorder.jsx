@@ -7,6 +7,7 @@ const MediaRecorderComponent = forwardRef(({ onStop, recordId, uploadUrl }, ref)
   const [recording, setRecording] = useState(false);
   const [videoUrl, setVideoUrl] = useState(null);
   const [stream, setStream] = useState(null);
+  const [recordedBlob, setRecordedBlob] = useState(null);
 
   const startRecording = async () => {
     const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -18,31 +19,9 @@ const MediaRecorderComponent = forwardRef(({ onStop, recordId, uploadUrl }, ref)
     recorder.onstop = async () => {
       const blob = new Blob(chunks, { type: 'video/mp4' });
       setVideoUrl(URL.createObjectURL(blob));
+      setRecordedBlob(blob); // 保存录制的blob
       if (onStop) onStop(blob);
-      if (uploadUrl && recordId) {
-        try {
-          const token = getToken();
-          const formData = new FormData();
-          formData.append('video', blob, `record_${recordId}.mp4`);
-          const response = await fetch(`${uploadUrl}/${recordId}`, {
-            method: 'POST',
-            body: formData,
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          });
-          
-          if (!response.ok) {
-            console.error('视频上传失败:', response.status, response.statusText);
-            // 不抛出错误，只记录日志，避免中断流程
-          } else {
-            console.log('视频上传成功');
-          }
-        } catch (error) {
-          console.error('视频上传异常:', error);
-          // 不抛出错误，只记录日志，避免中断流程
-        }
-      }
+      // 不在这里上传，等待手动调用uploadVideo
       mediaStream.getTracks().forEach(track => track.stop());
     };
     mediaRecorderRef.current = recorder;
@@ -57,9 +36,41 @@ const MediaRecorderComponent = forwardRef(({ onStop, recordId, uploadUrl }, ref)
     }
   };
 
+  const uploadVideo = async (newRecordId) => {
+    if (recordedBlob && uploadUrl && newRecordId) {
+      try {
+        const token = getToken();
+        const formData = new FormData();
+        formData.append('video', recordedBlob, `record_${newRecordId}.mp4`);
+        const response = await fetch(`${uploadUrl}/${newRecordId}`, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          console.error('视频上传失败:', response.status, response.statusText);
+          throw new Error('视频上传失败');
+        } else {
+          console.log('视频上传成功');
+          return true;
+        }
+      } catch (error) {
+        console.error('视频上传异常:', error);
+        throw error;
+      }
+    } else {
+      console.log('没有录制的视频或缺少recordId，跳过上传');
+      return false;
+    }
+  };
+
   useImperativeHandle(ref, () => ({
     startRecording,
-    stopRecording
+    stopRecording,
+    uploadVideo
   }));
 
   return (
