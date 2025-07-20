@@ -23,25 +23,70 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avat
   const wrapperRef = useRef(null);
   const playerRef = useRef(null);
   const [playNotAllowed, setPlayNotAllowed] = useState(false);
-  // 新增：拉流重试
-  const maxRetry = 16; // 拉流最大重试次数，0.5秒间隔共8秒
+  // 优化：拉流重试参数
+  const maxRetry = 8; // 拉流最大重试次数，1秒间隔共8秒
   const retryCountRef = useRef(0);
   const retryTimeoutRef = useRef(null);
-  // 新增：currentTime检测
-  const currentTimeCheckTimeout = useRef(null);
-  // 新增：防止currentTime检测提前触发失败
-  const isRetryingRef = useRef(false);
-  // 新增：全局超时机制
+  // 优化：waiting状态检测
+  const waitingTimeoutRef = useRef(null);
+  const waitingStartTimeRef = useRef(null);
+  // 优化：简化状态管理
+  const isInitializedRef = useRef(false);
+  // 优化：全局超时机制
   const globalTimeoutRef = useRef(null);
+  // 新增：播放成功标志，防止重试
+  const isPlayingSuccessfullyRef = useRef(false);
 
   useEffect(() => {
     let stopped = false;
+    
+    const clearAllTimeouts = () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+      if (waitingTimeoutRef.current) {
+        clearTimeout(waitingTimeoutRef.current);
+        waitingTimeoutRef.current = null;
+      }
+      if (globalTimeoutRef.current) {
+        clearTimeout(globalTimeoutRef.current);
+        globalTimeoutRef.current = null;
+      }
+    };
+
+    const handleRetry = () => {
+      // 如果已经成功播放，不再重试
+      if (stopped || isPlayingSuccessfullyRef.current) return;
+      
+      if (retryCountRef.current < maxRetry) {
+        retryCountRef.current++;
+        console.log(`拉流重试，第${retryCountRef.current}次，共${maxRetry}次`);
+        retryTimeoutRef.current = setTimeout(tryPlay, 1000); // 重试间隔1秒
+      } else {
+        console.log(`重试${maxRetry}次后仍然失败，显示失败状态`);
+        console.log('重试失败状态：', {
+          isPlayingSuccessfully: isPlayingSuccessfullyRef.current,
+          retryCount: retryCountRef.current,
+          maxRetry: maxRetry
+        });
+        // 确保失败状态被正确设置
+        if (onPlayerFail) {
+          onPlayerFail();
+        }
+      }
+    };
+
     const tryPlay = () => {
-      if (stopped) return;
+      // 如果已经成功播放，不再尝试
+      if (stopped || isPlayingSuccessfullyRef.current) return;
+      
+      // 清理之前的播放器
       if (playerRef.current) {
         playerRef.current.stop();
         playerRef.current = null;
       }
+      
       if (streamInfo && streamInfo.stream_url && streamInfo.session) {
         const player = new RTCPlayer();
         player.playerType = 6;
@@ -51,12 +96,44 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avat
           sid: streamInfo.session,
           streamUrl: streamInfo.stream_url
         };
+        
         player
-          .on('play', () => console.log('sdk event: player play'))
-          .on('waiting', () => console.log('sdk event: player waiting'))
+          .on('play', () => {
+            console.log('sdk event: player play');
+            // 重置waiting状态
+            if (waitingTimeoutRef.current) {
+              clearTimeout(waitingTimeoutRef.current);
+              waitingTimeoutRef.current = null;
+            }
+            waitingStartTimeRef.current = null;
+          })
+          .on('waiting', () => {
+            // 如果已经成功播放，忽略waiting事件
+            if (isPlayingSuccessfullyRef.current) return;
+            
+            console.log('sdk event: player waiting');
+            // 记录waiting开始时间
+            if (!waitingStartTimeRef.current) {
+              waitingStartTimeRef.current = Date.now();
+            }
+            // 如果waiting超过3秒，触发重试
+            if (waitingTimeoutRef.current) {
+              clearTimeout(waitingTimeoutRef.current);
+            }
+            waitingTimeoutRef.current = setTimeout(() => {
+              console.log('waiting超时3秒，触发重试');
+              handleRetry();
+            }, 3000);
+          })
           .on('playing', () => {
             console.log('sdk event: player playing');
-            // 立即设置视频样式，不等待500ms
+            // 立即隐藏加载效果，不等待严格检测
+            if (onPlayerReady) onPlayerReady();
+            
+            // 清除所有超时
+            clearAllTimeouts();
+            
+            // 设置视频样式
             const video = wrapperRef.current?.querySelector('video');
             if (video) {
               video.style.width = '100%';
@@ -68,124 +145,185 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avat
               video.style.display = 'block';
               video.style.margin = '0 auto';
               
-              // 添加更快的检测机制
+              // 简化检测机制：只使用loadeddata事件
               const handleVideoReady = () => {
-                console.log('视频数据加载完成，虚拟人已就绪');
-                // 清除全局超时
-                if (globalTimeoutRef.current) {
-                  clearTimeout(globalTimeoutRef.current);
-                  globalTimeoutRef.current = null;
-                }
-                if (onPlayerReady) onPlayerReady();
-                // 移除事件监听
+                console.log('loadeddata事件触发，开始严格检测');
+                
+                // 延迟检测，给视频更多时间加载
+                setTimeout(() => {
+                  if (checkVideoActuallyPlaying()) {
+                    console.log('严格检测通过，视频真正在播放');
+                    isPlayingSuccessfullyRef.current = true;
+                    // 注意：这里不再调用onPlayerReady，因为已经在playing事件中调用了
+                  } else {
+                    console.log('严格检测失败，视频可能黑屏，继续等待');
+                    // 如果检测失败，继续等待或重试
+                    setTimeout(() => {
+                      if (!isPlayingSuccessfullyRef.current && checkVideoActuallyPlaying()) {
+                        console.log('延迟检测通过，视频开始播放');
+                        isPlayingSuccessfullyRef.current = true;
+                        // 注意：这里不再调用onPlayerReady，因为已经在playing事件中调用了
+                      } else {
+                        console.log('延迟检测也失败，可能真的有问题');
+                      }
+                    }, 2000);
+                  }
+                }, 500);
+                
                 video.removeEventListener('loadeddata', handleVideoReady);
-                video.removeEventListener('canplay', handleVideoReady);
               };
               
-              // 监听视频数据加载完成事件
-              video.addEventListener('loadeddata', handleVideoReady);
-              // 监听视频可以播放事件（通常更快）
-              video.addEventListener('canplay', handleVideoReady);
-              
-              // 立即进行currentTime检测，不等待2秒
-              let lastTime = video.currentTime;
-              if (currentTimeCheckTimeout.current) clearTimeout(currentTimeCheckTimeout.current);
-              currentTimeCheckTimeout.current = setTimeout(() => {
-                // 只有在不是重试状态时才进行currentTime检测
-                if (!isRetryingRef.current) {
-                  if (video.currentTime > lastTime + 0.1) {
-                    // 说明真的在播放
-                    console.log('currentTime检测成功，虚拟人已就绪');
-                    // 清除全局超时
-                    if (globalTimeoutRef.current) {
-                      clearTimeout(globalTimeoutRef.current);
-                      globalTimeoutRef.current = null;
-                    }
-                    if (onPlayerReady) onPlayerReady();
-                  } else {
-                    // 可能黑屏/无流，但不要立即失败，让重试机制处理
-                    console.log('currentTime检测失败，但继续重试中...');
-                  }
+              // 更严格的视频检测机制
+              const checkVideoActuallyPlaying = () => {
+                if (!video) return false;
+                
+                // 检查1：视频尺寸
+                if (video.videoWidth === 0 || video.videoHeight === 0) {
+                  console.log('视频尺寸检测失败：', video.videoWidth, 'x', video.videoHeight);
+                  return false;
                 }
-              }, 500); // 缩短到500ms检测
-            } else {
-              // 没有video标签，但不要立即失败，让重试机制处理
-              console.log('没有找到video标签，但继续重试中...');
+                
+                // 检查2：视频时长
+                if (video.duration === 0 || isNaN(video.duration)) {
+                  console.log('视频时长检测失败：', video.duration);
+                  return false;
+                }
+                
+                // 检查3：视频是否真的在播放
+                if (video.paused) {
+                  console.log('视频暂停状态检测失败');
+                  return false;
+                }
+                
+                // 检查4：使用Canvas检测像素数据
+                try {
+                  const canvas = document.createElement('canvas');
+                  const ctx = canvas.getContext('2d');
+                  canvas.width = video.videoWidth;
+                  canvas.height = video.videoHeight;
+                  
+                  // 绘制当前视频帧到Canvas
+                  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                  
+                  // 获取像素数据
+                  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                  const data = imageData.data;
+                  
+                  // 检查是否有非黑色像素
+                  let nonBlackPixels = 0;
+                  let totalPixels = data.length / 4;
+                  
+                  for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    // 如果RGB值都大于10，认为是非黑色像素
+                    if (r > 10 || g > 10 || b > 10) {
+                      nonBlackPixels++;
+                    }
+                  }
+                  
+                  const blackPixelRatio = (totalPixels - nonBlackPixels) / totalPixels;
+                  console.log('像素检测结果：', {
+                    totalPixels,
+                    nonBlackPixels,
+                    blackPixelRatio: blackPixelRatio.toFixed(3)
+                  });
+                  
+                  // 如果超过95%的像素都是黑色，认为是黑屏
+                  if (blackPixelRatio > 0.95) {
+                    console.log('检测到黑屏，黑色像素比例：', blackPixelRatio.toFixed(3));
+                    return false;
+                  }
+                  
+                  console.log('像素检测通过，视频有实际内容');
+                } catch (error) {
+                  console.log('Canvas像素检测失败：', error);
+                  // Canvas检测失败时，继续其他检测
+                }
+                
+                return true;
+              };
+              
+              video.addEventListener('loadeddata', handleVideoReady);
+              
+              // 备用检测：如果5秒后还没有成功，也标记为成功
+              setTimeout(() => {
+                if (!isPlayingSuccessfullyRef.current) {
+                  console.log('备用检测：playing事件后5秒，标记为成功');
+                  isPlayingSuccessfullyRef.current = true;
+                  // 注意：这里不再调用onPlayerReady，因为已经在playing事件中调用了
+                }
+              }, 5000);
             }
-            // 只有在非重试状态下才重置重试计数
-            if (!isRetryingRef.current) {
-              retryCountRef.current = 0;
-            }
+            
+            // 重置重试计数
+            retryCountRef.current = 0;
           })
           .on('not-allowed', () => {
             setPlayNotAllowed(true);
             console.log('sdk event: play not allowed, muted play');
           })
           .on('error', err => {
+            // 如果已经成功播放，忽略错误
+            if (isPlayingSuccessfullyRef.current) return;
+            
             console.error('sdk event: error', err);
             setPlayNotAllowed(true);
-            // 拉流失败重试
-            if (retryCountRef.current < maxRetry) {
-              retryCountRef.current++;
-              isRetryingRef.current = true;
-              console.log(`拉流失败，第${retryCountRef.current}次重试，共${maxRetry}次`);
-              retryTimeoutRef.current = setTimeout(tryPlay, 500); // 拉流重试间隔缩短为0.5秒
-            } else {
-              console.log(`重试${maxRetry}次后仍然失败，显示失败状态`);
-              isRetryingRef.current = false;
-              if (onPlayerFail) onPlayerFail();
-            }
+            handleRetry();
           });
+        
         try {
           player.play();
           playerRef.current = player;
         } catch (error) {
+          // 如果已经成功播放，忽略错误
+          if (isPlayingSuccessfullyRef.current) return;
+          
           console.error('RTCPlayer播放失败:', error);
           setPlayNotAllowed(true);
-          if (retryCountRef.current < maxRetry) {
-            retryCountRef.current++;
-            isRetryingRef.current = true;
-            console.log(`RTCPlayer初始化失败，第${retryCountRef.current}次重试，共${maxRetry}次`);
-            retryTimeoutRef.current = setTimeout(tryPlay, 500); // 拉流重试间隔缩短为0.5秒
-          } else {
-            console.log(`重试${maxRetry}次后仍然失败，显示失败状态`);
-            isRetryingRef.current = false;
-            if (onPlayerFail) onPlayerFail();
-          }
+          handleRetry();
         }
       }
     };
+    
     if (streamInfo && streamInfo.stream_url && streamInfo.session) {
+      // 重置状态
       retryCountRef.current = 0;
-      isRetryingRef.current = false;
+      isInitializedRef.current = false;
+      isPlayingSuccessfullyRef.current = false; // 重置播放成功标志
+      clearAllTimeouts();
       
-      // 设置全局超时：8秒后如果还没有成功就显示失败
-      if (globalTimeoutRef.current) {
-        clearTimeout(globalTimeoutRef.current);
-      }
+      // 设置全局超时：12秒后如果还没有成功就显示失败
       globalTimeoutRef.current = setTimeout(() => {
-        console.log('全局超时8秒，显示失败状态');
-        isRetryingRef.current = false;
-        if (onPlayerFail) onPlayerFail();
-      }, 8000); // 8秒超时
+        // 如果已经成功播放，不触发失败
+        if (isPlayingSuccessfullyRef.current) {
+          console.log('全局超时检查：已成功播放，跳过失败处理');
+          return;
+        }
+        
+        console.log('全局超时12秒，显示失败状态');
+        console.log('当前状态：', {
+          isPlayingSuccessfully: isPlayingSuccessfullyRef.current,
+          retryCount: retryCountRef.current,
+          maxRetry: maxRetry
+        });
+        // 确保失败状态被正确设置
+        if (onPlayerFail) {
+          onPlayerFail();
+        }
+      }, 12000); // 12秒超时
       
       tryPlay();
     }
+    
     return () => {
       stopped = true;
       if (playerRef.current) {
         playerRef.current.stop();
         playerRef.current = null;
       }
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-      if (currentTimeCheckTimeout.current) {
-        clearTimeout(currentTimeCheckTimeout.current);
-      }
-      if (globalTimeoutRef.current) {
-        clearTimeout(globalTimeoutRef.current);
-      }
+      clearAllTimeouts();
     };
   }, [streamInfo]);
 
@@ -260,12 +398,7 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avat
             </div>
           </div>
         )}
-        {(!streamInfo || !streamInfo.stream_url) && (
-          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-            <div style={{ fontSize: 110, marginBottom: 10 }}>🤖</div>
-            <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: 2 }}>AI面试官</div>
-          </div>
-        )}
+
         {showSubtitle && subtitle && (
           <div style={{
             position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)',
@@ -347,7 +480,7 @@ const Interview = () => {
           setInterviewInfo({ position: res.data.position, aiModel: res.data.aiModel });
         } catch (e) {
           // 如果获取面试信息失败，使用默认值
-          setQuestion('请介绍一下你的技术背景和项目经验');
+          setQuestion('');
           setInterviewInfo({ position: getPositionByType(type), aiModel: 'GPT-4' });
         }
         
@@ -801,6 +934,7 @@ const Interview = () => {
               }
             }}
             onPlayerFail={() => { 
+              console.log('设置虚拟人失败状态');
               setAvatarFail(true); 
               setAvatarReady(false); 
               showToast('虚拟人拉流失败，请重试或检查网络', 'error');
