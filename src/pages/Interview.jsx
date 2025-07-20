@@ -227,8 +227,11 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avat
         />
         {/* 加载动画：虚拟人加载中且未就绪且未失败时显示 */}
         {(!avatarReady && !avatarFail && (avatarLoading || (streamInfo && streamInfo.stream_url))) && (
-          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, background: 'rgba(24,24,28,0.7)' }}>
-            <div style={{ width: 72, height: 72, border: '6px solid #fff', borderTop: '6px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10, background: 'rgba(24,24,28,0.7)' }}>
+            <div style={{ width: 72, height: 72, border: '6px solid #fff', borderTop: '6px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: 16 }} />
+            <div style={{ color: '#fff', fontSize: 14, textAlign: 'center' }}>
+              {avatarLoading ? '正在启动虚拟人，请稍候...' : '正在连接虚拟人，请稍候...'}
+            </div>
           </div>
         )}
         
@@ -803,6 +806,7 @@ const Interview = () => {
               showToast('虚拟人拉流失败，请重试或检查网络', 'error');
             }}
           />
+
           {/* 面试者视频，紧贴AI面试官视频下方 */}
           <div className={styles.userVideoArea} style={{ marginTop: 16 }}>
             {userStream ? (
@@ -831,39 +835,15 @@ const Interview = () => {
                 console.log('视频录制完成，文件大小:', blob.size);
               }}
             />
-            {/* “继续”按钮直接传递 '继续' 给 handleSendMessage */}
-            <Button
-              onClick={() => handleSendMessage('继续')}
-              type="primary"
-              disabled={avatarLoading || !streamInfo?.session}
-              style={{
-                width: '100%',
-                height: 64,
-                fontSize: 20,
-                borderRadius: 16,
-                marginTop: 8
-              }}
-            >
-              继续
-            </Button>
-            {/* 虚拟人加载状态提示 */}
-            {(!avatarReady && !avatarFail && (avatarLoading || (streamInfo && streamInfo.stream_url))) && (
-              <div style={{ marginTop: 16, textAlign: 'center', color: '#64748b', fontSize: 14 }}>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 16, height: 16, border: '2px solid #e2e8f0', borderTop: '2px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-                  {avatarLoading ? '正在启动虚拟人，请稍候...' : '正在连接虚拟人，请稍候...'}
-                </div>
-              </div>
-            )}
-          </div>
-          {/* 音频录音区域，放在主内容下方，单列居中 */}
-          <div style={{ width: '100%', maxWidth: 480, margin: '32px auto 0 auto' }}>
-            <AudioRecorder
-              onAudioData={blob => {
-                setAudioBlob(blob);
-                handleSendAudio(blob);
-              }}
-            />
+            {/* 音频录音区域 - 替换说话框位置 */}
+            <div style={{ width: '100%', maxWidth: 720, margin: '0 auto' }}>
+              <AudioRecorder
+                onAudioData={blob => {
+                  setAudioBlob(blob);
+                  handleSendAudio(blob);
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
