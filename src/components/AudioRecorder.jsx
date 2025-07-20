@@ -123,8 +123,8 @@ const AudioRecorder = ({ onAudioData }) => {
       
       {/* 音频可视化 */}
       <div style={{ marginBottom: 16, textAlign: 'center' }}>
-        <canvas 
-          ref={canvasRef} 
+        <canvas
+          ref={canvasRef}
           width={300} 
           height={40} 
           style={{ 
@@ -137,7 +137,7 @@ const AudioRecorder = ({ onAudioData }) => {
       
       {/* 控制按钮 */}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-        {!isRecording && (
+          {!isRecording && (
           <Button 
             type="primary" 
             icon={<AudioOutlined />} 
@@ -145,8 +145,8 @@ const AudioRecorder = ({ onAudioData }) => {
             style={{ minWidth: 140, height: 40, fontSize: 14 }}
           >
             点击说话
-          </Button>
-        )}
+            </Button>
+          )}
         
         {isRecording && (
           <Button 

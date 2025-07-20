@@ -57,13 +57,16 @@ export const interviewAPI = {
   startInterview: (type) => api.post(`/interview/start/${type}`),
   
   // 结束面试（传recordId和sessionId）
-  endInterview: (recordId, actualDuration, sessionId) => {
+  endInterview: (recordId, actualDuration, sessionId, resumeId) => {
     const params = new URLSearchParams();
     if (actualDuration !== undefined && actualDuration !== null) {
       params.append('actualDuration', actualDuration);
     }
     if (sessionId) {
       params.append('sessionId', sessionId);
+    }
+    if (resumeId) {
+      params.append('resumeId', resumeId);
     }
     return api.post(`/interview/end/${recordId}?${params.toString()}`);
   },
@@ -100,6 +103,49 @@ export const interviewAPI = {
       },
     });
   },
+};
+
+// 简历相关接口
+export const resumeAPI = {
+  // 获取用户简历列表
+  getResumeList: () => api.get('/resume/list'),
+  
+  // 上传简历
+  uploadResume: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/resume/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  
+  // 删除简历
+  deleteResume: (id) => api.delete(`/resume/${id}`),
+  
+  // 下载简历
+  downloadResume: (id) => api.get(`/resume/download/${id}`, {
+    responseType: 'blob',
+  }),
+};
+
+// 面试分析相关接口
+export const analysisAPI = {
+  // 执行面试分析
+  analyzeInterview: (recordId, resumeId) => {
+    const params = new URLSearchParams();
+    if (resumeId) {
+      params.append('resumeId', resumeId);
+    }
+    return api.post(`/interview/analyze/${recordId}?${params.toString()}`);
+  },
+  
+  // 获取分析结果
+  getAnalysisResult: (recordId) => api.get(`/interview/analysis-result/${recordId}`),
+
+  // 获取分析进度
+  getAnalysisProgress: (recordId) => api.get(`/interview/analysis-progress/${recordId}`),
 };
 
 // 虚拟人相关接口
@@ -163,7 +209,7 @@ export const getInterviewHistory = () => interviewAPI.getHistory();
 export const getInterviewRecord = (recordId) => interviewAPI.getInterviewRecord(recordId);
 export const getInterviewInfo = (type) => interviewAPI.getInterviewInfo(type);
 export const startInterview = (type) => interviewAPI.startInterview(type);
-export const endInterview = (recordId, actualDuration, sessionId) => interviewAPI.endInterview(recordId, actualDuration, sessionId);
+export const endInterview = (recordId, actualDuration, sessionId, resumeId) => interviewAPI.endInterview(recordId, actualDuration, sessionId, resumeId);
 export const uploadVideo = (recordId, videoFile) => interviewAPI.uploadVideo(recordId, videoFile);
 
 export const deleteInterviewRecord = (recordId) =>

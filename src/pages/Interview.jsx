@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { startInterview, endInterview, deleteInterviewRecord, getInterviewInfo } from '../api';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { startInterview, endInterview, deleteInterviewRecord, getInterviewInfo, analysisAPI, resumeAPI } from '../api';
 import api from '../api';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -155,7 +155,7 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avat
                     console.log('严格检测通过，视频真正在播放');
                     isPlayingSuccessfullyRef.current = true;
                     // 注意：这里不再调用onPlayerReady，因为已经在playing事件中调用了
-                  } else {
+                } else {
                     console.log('严格检测失败，视频可能黑屏，继续等待');
                     // 如果检测失败，继续等待或重试
                     setTimeout(() => {
@@ -163,7 +163,7 @@ const AIInterviewerVideo = ({ showSubtitle, subtitle, streamInfo, children, avat
                         console.log('延迟检测通过，视频开始播放');
                         isPlayingSuccessfullyRef.current = true;
                         // 注意：这里不再调用onPlayerReady，因为已经在playing事件中调用了
-                      } else {
+            } else {
                         console.log('延迟检测也失败，可能真的有问题');
                       }
                     }, 2000);
@@ -433,6 +433,8 @@ const UserVideoPiP = ({ stream }) => {
 const Interview = () => {
   const navigate = useNavigate();
   const { type } = useParams();
+  const location = useLocation();
+  const selectedResume = location.state?.selectedResume;
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
   const showToast = (message, type = 'info') => {
@@ -457,6 +459,11 @@ const Interview = () => {
   const [avatarReady, setAvatarReady] = useState(false);
   const [avatarFail, setAvatarFail] = useState(false);
 
+  // 新增：简历选择和分析相关状态
+  const [resumes, setResumes] = useState([]);
+  const [selectedResumeId, setSelectedResumeId] = useState(selectedResume?.id || null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+
   // 页面加载时直接打开摄像头，并自动启动虚拟人（不创建面试记录）
   useEffect(() => {
     console.log('Interview useEffect called', new Date().toISOString());
@@ -475,9 +482,9 @@ const Interview = () => {
         // 2. 获取面试信息（不创建记录）
         try {
           const res = await getInterviewInfo(type);
-          if (!isMounted) return;
-          setQuestion(res.data.question);
-          setInterviewInfo({ position: res.data.position, aiModel: res.data.aiModel });
+        if (!isMounted) return;
+        setQuestion(res.data.question);
+        setInterviewInfo({ position: res.data.position, aiModel: res.data.aiModel });
         } catch (e) {
           // 如果获取面试信息失败，使用默认值
           setQuestion('');
@@ -523,6 +530,19 @@ const Interview = () => {
         if (isMounted && mediaRecorderRef.current) {
           // 使用临时ID开始录制
           mediaRecorderRef.current.startRecording();
+        }
+        
+        // 5. 获取用户简历列表（如果还没有选中的简历）
+        if (!selectedResumeId) {
+          try {
+            const resumeRes = await resumeAPI.getResumeList();
+            if (isMounted) {
+              setResumes(resumeRes.data);
+            }
+          } catch (error) {
+            console.error('获取简历列表失败:', error);
+            // 简历获取失败不影响面试流程
+          }
         }
       } catch (e) {
         showToast('面试初始化失败', 'error');
@@ -588,12 +608,23 @@ const Interview = () => {
         }
       }
       
-      // 4. 结束面试（生成报告）
+      // 4. 结束面试（不生成报告，等待分析）
       console.log('结束面试，recordId:', newRecordId, 'sessionId:', streamInfo?.session, '实际时长:', interviewSeconds, '秒');
-      await endInterview(newRecordId, interviewSeconds, streamInfo?.session);
-      showToast('面试已结束', 'success');
+      const endRes = await endInterview(newRecordId, interviewSeconds, streamInfo?.session, selectedResumeId);
+      showToast('面试已结束，准备开始分析', 'success');
       
-      // 5. 清理资源
+      // 5. 异步执行多模态分析（不等待完成）
+      if (endRes.data.canAnalyze) {
+        console.log('开始异步执行多模态分析，recordId:', newRecordId, 'resumeId:', selectedResumeId);
+        // 异步执行分析，不阻塞用户界面
+        analysisAPI.analyzeInterview(newRecordId, selectedResumeId).then(() => {
+          console.log('分析完成');
+        }).catch((error) => {
+          console.error('分析失败:', error);
+        });
+      }
+      
+      // 6. 清理资源
       if (userStream) {
         userStream.getTracks().forEach(track => track.stop());
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -601,7 +632,7 @@ const Interview = () => {
       // 自动关闭虚拟人连接
       await closeAvatarConnection();
       
-      // 6. 跳转到AI评测页面，传递面试时长
+      // 7. 立即跳转到AI评测页面，传递面试时长
       navigate(`/ai-review/${newRecordId}?duration=${interviewSeconds}`);
     } catch (e) {
       showToast('结束面试失败', 'error');
@@ -888,6 +919,25 @@ const Interview = () => {
           <Title level={3} style={{ margin: 0 }}>AI面试模拟器</Title>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {/* 简历信息显示 */}
+          {selectedResume && (
+            <div style={{
+              background: '#f0f9ff',
+              color: '#0369a1',
+              borderRadius: 8,
+              padding: '8px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontWeight: 500,
+              fontSize: 13,
+              border: '1px solid #bae6fd'
+            }}>
+              <span>📄</span>
+              <span>{selectedResume.originalName}</span>
+            </div>
+          )}
+          
           <div style={{
             background: '#f1f5f9',
             color: '#334155',
@@ -971,12 +1021,12 @@ const Interview = () => {
             />
             {/* 音频录音区域 - 替换说话框位置 */}
             <div style={{ width: '100%', maxWidth: 720, margin: '0 auto' }}>
-              <AudioRecorder
-                onAudioData={blob => {
-                  setAudioBlob(blob);
-                  handleSendAudio(blob);
-                }}
-              />
+            <AudioRecorder
+              onAudioData={blob => {
+                setAudioBlob(blob);
+                handleSendAudio(blob);
+              }}
+            />
             </div>
           </div>
         </div>
@@ -987,11 +1037,47 @@ const Interview = () => {
         title="确认结束面试"
         onOk={handleEndInterview}
         onCancel={() => setEndModalVisible(false)}
-        okText="确认结束"
+        okText={analysisLoading ? "分析中..." : "确认结束"}
         cancelText="取消"
+        okButtonProps={{ disabled: analysisLoading }}
       >
         <div style={{ fontSize: 16, color: '#475569', padding: '12px 0' }}>
+          <div style={{ marginBottom: 16 }}>
           确定要提交并结束本次面试吗？
+          </div>
+          
+          {/* 显示已选择的简历信息 */}
+          {selectedResume && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 8, fontWeight: 500, color: '#374151' }}>
+                已选择简历：
+              </div>
+              <div style={{
+                padding: '8px 12px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '14px',
+                backgroundColor: '#f8fafc',
+                color: '#374151'
+              }}>
+                {selectedResume.originalName}
+              </div>
+            </div>
+          )}
+          
+          {/* 分析状态提示 */}
+          {analysisLoading && (
+            <div style={{ 
+              padding: '12px', 
+              backgroundColor: '#fef3c7', 
+              border: '1px solid #f59e0b', 
+              borderRadius: '6px',
+              color: '#92400e',
+              fontSize: '14px'
+            }}>
+              🔄 正在执行多模态分析，请稍候...
+            </div>
+          )}
         </div>
       </Modal>
       {/* 直接退出面试确认弹窗 */}

@@ -9,6 +9,7 @@ import Toast from '../components/ui/Toast';
 import { removeToken } from '../utils/auth';
 import { showToast } from '../utils/toast';
 import { BgEffectContext } from '../App';
+import { resumeAPI } from '../api';
 
 // 面试类型数据（用emoji图标）
 const interviewTypes = [
@@ -142,6 +143,56 @@ const InterviewTypes = () => {
   const [showPositions, setShowPositions] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
   const { setThemeColor, resetColors } = useContext(BgEffectContext);
+  
+  // 简历相关状态
+  const [resumeList, setResumeList] = useState([]);
+  const [selectedResume, setSelectedResume] = useState(null);
+  const [loadingResumes, setLoadingResumes] = useState(false);
+  const [resumeDropdownOpen, setResumeDropdownOpen] = useState(false);
+
+  // 点击外部区域关闭下拉菜单
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const dropdownElement = document.getElementById('resume-dropdown');
+      if (dropdownElement && !dropdownElement.contains(event.target)) {
+        setResumeDropdownOpen(false);
+      }
+    };
+
+    if (resumeDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [resumeDropdownOpen]);
+
+  // 获取用户简历列表
+  useEffect(() => {
+    const fetchResumes = async () => {
+      try {
+        setLoadingResumes(true);
+        const response = await resumeAPI.getResumeList();
+        setResumeList(response.data || []);
+      } catch (error) {
+        console.error('获取简历列表失败:', error);
+        showToast(setToast, '获取简历列表失败', 'error');
+      } finally {
+        setLoadingResumes(false);
+      }
+    };
+
+    fetchResumes();
+  }, []);
+
+  // 处理简历选择
+  const handleResumeSelect = (resume) => {
+    setSelectedResume(resume);
+    console.log('选中的简历路径:', resume.filename);
+    showToast(setToast, `已选择简历: ${resume.originalName}`, 'success');
+  };
+
   const handleCategorySelect = (category) => {
     if (category && category.positions) {
       setSelectedCategory(category);
@@ -160,6 +211,7 @@ const InterviewTypes = () => {
 
   const handlePositionSelect = (position) => {
     setSelectedPosition(position);
+    setResumeDropdownOpen(false); // 关闭简历下拉菜单
   };
 
   const handleStartInterview = async () => {
@@ -169,9 +221,29 @@ const InterviewTypes = () => {
     }
     setLoading(true);
     try {
+      // 输出简历选择信息
+      if (selectedResume) {
+        console.log('开始面试，选中的简历信息:', {
+          id: selectedResume.id,
+          filename: selectedResume.filename,
+          originalName: selectedResume.originalName,
+          uploadTime: selectedResume.uploadTime
+        });
+      } else {
+        console.log('开始面试，未选择简历');
+      }
+      
       showToast(setToast, `开始${selectedPosition.title}面试`, 'success');
       setTimeout(() => {
-        navigate(`/device-check/${selectedPosition.type}`);
+        // 传递选中的简历信息到设备检查页面
+        const resumeInfo = selectedResume ? {
+          id: selectedResume.id,
+          filename: selectedResume.filename,
+          originalName: selectedResume.originalName
+        } : null;
+        navigate(`/device-check/${selectedPosition.type}`, { 
+          state: { selectedResume: resumeInfo } 
+        });
       }, 1000);
     } catch (error) {
       showToast(setToast, '启动面试失败', 'error');
@@ -402,6 +474,273 @@ const InterviewTypes = () => {
                     已选择: <Text strong style={{ color: '#1e293b' }}>{selectedPosition.title}</Text>
                   </Text>
                 </div>
+                
+                {/* 简历选择区域 */}
+                <div style={{ width: '100%', maxWidth: 400, marginBottom: 16 }}>
+                  <div style={{ marginBottom: 8 }}>
+                    <Text style={{ fontSize: 14, color: '#64748b' }}>
+                      选择简历 (可选):
+                    </Text>
+                  </div>
+                  
+                  {loadingResumes ? (
+                    <div style={{ 
+                      padding: '12px 16px', 
+                      border: '1px solid #e2e8f0', 
+                      borderRadius: 8, 
+                      background: '#f8fafc',
+                      textAlign: 'center',
+                      color: '#64748b'
+                    }}>
+                      加载简历中...
+                    </div>
+                  ) : (
+                    <div style={{ position: 'relative' }} id="resume-dropdown">
+                      {/* 下拉菜单触发器 */}
+                      <div
+                        onClick={() => setResumeDropdownOpen(!resumeDropdownOpen)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setResumeDropdownOpen(!resumeDropdownOpen);
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-haspopup="listbox"
+                        aria-expanded={resumeDropdownOpen}
+                        style={{
+                          padding: '12px 16px',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: 8,
+                          background: '#fff',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          transition: 'all 0.2s ease',
+                          minHeight: 44,
+                          boxShadow: resumeDropdownOpen ? '0 4px 12px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.05)',
+                          borderColor: resumeDropdownOpen ? selectedCategory.color : '#e2e8f0',
+                          outline: 'none'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!resumeDropdownOpen) {
+                            e.target.style.borderColor = selectedCategory.color;
+                            e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!resumeDropdownOpen) {
+                            e.target.style.borderColor = '#e2e8f0';
+                            e.target.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+                          }
+                        }}
+                      >
+                        <div style={{ flex: 1, textAlign: 'left' }}>
+                          {selectedResume ? (
+                            <div>
+                              <Text strong style={{ fontSize: 14, color: '#1e293b' }}>
+                                {selectedResume.originalName}
+                              </Text>
+                              <div style={{ marginTop: 2 }}>
+                                <Text style={{ fontSize: 12, color: '#64748b' }}>
+                                  上传时间: {new Date(selectedResume.uploadTime).toLocaleString('zh-CN')}
+                                </Text>
+                              </div>
+                            </div>
+                          ) : (
+                            <Text style={{ fontSize: 14, color: '#64748b' }}>
+                              请选择简历（可选）
+                            </Text>
+                          )}
+                        </div>
+                        <div style={{ 
+                          marginLeft: 12,
+                          transition: 'transform 0.2s ease',
+                          transform: resumeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                          color: '#64748b'
+                        }}>
+                          ▼
+                        </div>
+                      </div>
+                      
+                      {/* 下拉菜单内容 */}
+                      {resumeDropdownOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              setResumeDropdownOpen(false);
+                            }
+                          }}
+                          tabIndex={-1}
+                          role="listbox"
+                          style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            right: 0,
+                            background: '#fff',
+                            border: `1px solid ${selectedCategory.color}`,
+                            borderTop: 'none',
+                            borderRadius: '0 0 8px 8px',
+                            boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+                            zIndex: 1000,
+                            maxHeight: 300,
+                            overflowY: 'auto'
+                          }}
+                        >
+                          {/* 不选择选项 */}
+                          <div
+                            onClick={() => {
+                              setSelectedResume(null);
+                              setResumeDropdownOpen(false);
+                              console.log('不选择简历');
+                              showToast(setToast, '已取消选择简历', 'info');
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setSelectedResume(null);
+                                setResumeDropdownOpen(false);
+                                console.log('不选择简历');
+                                showToast(setToast, '已取消选择简历', 'info');
+                              }
+                            }}
+                            tabIndex={0}
+                            role="option"
+                            aria-selected={selectedResume === null}
+                            style={{
+                              padding: '12px 16px',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              borderBottom: '1px solid #f1f5f9',
+                              background: selectedResume === null ? '#f0f9ff' : '#fff',
+                              borderLeft: selectedResume === null ? `3px solid ${selectedCategory.color}` : '3px solid transparent',
+                              outline: 'none'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (selectedResume !== null) {
+                                e.target.style.background = '#f8fafc';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (selectedResume !== null) {
+                                e.target.style.background = '#fff';
+                              }
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div>
+                                <Text style={{ fontSize: 14, color: '#64748b', fontStyle: 'italic' }}>
+                                  ✗ 不选择简历
+                                </Text>
+                                <div style={{ marginTop: 2 }}>
+                                  <Text style={{ fontSize: 12, color: '#94a3b8' }}>
+                                    直接开始面试，不关联简历
+                                  </Text>
+                                </div>
+                              </div>
+                              {selectedResume === null && (
+                                <div style={{ color: selectedCategory.color, fontSize: 16, fontWeight: 'bold' }}>
+                                  ✓
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* 简历列表 */}
+                          {resumeList.length > 0 ? (
+                            resumeList.map((resume) => (
+                              <div
+                                key={resume.id}
+                                onClick={() => {
+                                  handleResumeSelect(resume);
+                                  setResumeDropdownOpen(false);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    handleResumeSelect(resume);
+                                    setResumeDropdownOpen(false);
+                                  }
+                                }}
+                                tabIndex={0}
+                                role="option"
+                                aria-selected={selectedResume?.id === resume.id}
+                                style={{
+                                  padding: '12px 16px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease',
+                                  borderBottom: '1px solid #f1f5f9',
+                                  background: selectedResume?.id === resume.id ? '#f0f9ff' : '#fff',
+                                  borderLeft: selectedResume?.id === resume.id ? `3px solid ${selectedCategory.color}` : '3px solid transparent',
+                                  outline: 'none'
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (selectedResume?.id !== resume.id) {
+                                    e.target.style.background = '#f8fafc';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (selectedResume?.id !== resume.id) {
+                                    e.target.style.background = '#fff';
+                                  }
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <div style={{ flex: 1 }}>
+                                    <Text strong style={{ fontSize: 14, color: '#1e293b' }}>
+                                      📄 {resume.originalName}
+                                    </Text>
+                                    <div style={{ marginTop: 4 }}>
+                                      <Text style={{ fontSize: 12, color: '#64748b' }}>
+                                        上传时间: {new Date(resume.uploadTime).toLocaleString('zh-CN')}
+                                      </Text>
+                                    </div>
+                                  </div>
+                                  {selectedResume?.id === resume.id && (
+                                    <div style={{ color: selectedCategory.color, fontSize: 16, fontWeight: 'bold' }}>
+                                      ✓
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div style={{ 
+                              padding: '16px', 
+                              textAlign: 'center', 
+                              color: '#64748b',
+                              fontSize: 14,
+                              fontStyle: 'italic'
+                            }}>
+                              暂无上传的简历
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* 选中状态显示 */}
+                  {selectedResume && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      style={{ marginTop: 8 }}
+                    >
+                      <Tag color={selectedCategory.color} style={{ fontSize: 12 }}>
+                        ✓ 已选择: {selectedResume.originalName}
+                      </Tag>
+                    </motion.div>
+                  )}
+                </div>
+                
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
                   <Button
                     size="large"

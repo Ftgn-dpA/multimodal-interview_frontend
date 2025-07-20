@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { removeToken } from '../utils/auth';
-import { getInterviewRecord } from '../api';
+import { getInterviewRecord, analysisAPI } from '../api';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Tag from '../components/ui/Tag';
@@ -9,6 +9,8 @@ import { Title, Text, Paragraph } from '../components/ui/Typography';
 import Toast from '../components/ui/Toast';
 import Loading from '../components/ui/Loading';
 import { BgEffectContext } from '../App';
+import ReactMarkdown from 'react-markdown';
+import Progress from '../components/ui/Progress';
 
 // 能力雷达图组件（自定义进度条）
 const SkillRadarChart = ({ skillData }) => {
@@ -131,7 +133,9 @@ const ImprovementSuggestions = ({ suggestions }) => {
         {suggestionList.map((item, index) => (
           <div key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
             <Tag color="#22c55e">✔</Tag>
-            <Text>{item}</Text>
+            <div style={{ flex: 1, fontSize: 15, color: '#334155', lineHeight: 1.7, wordBreak: 'break-word' }}>
+              <ReactMarkdown>{item}</ReactMarkdown>
+            </div>
           </div>
         ))}
       </div>
@@ -185,16 +189,16 @@ const formatDuration = (startTime, endTime, currentTime = new Date(), actualDura
       return '未知';
     }
     
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
     
     let result = '';
-    if (h > 0) {
+  if (h > 0) {
       result = `${h}小时${m}分${s}秒`;
-    } else if (m > 0) {
+  } else if (m > 0) {
       result = `${m}分${s}秒`;
-    } else {
+  } else {
       result = `${s}秒`;
     }
     
@@ -219,62 +223,119 @@ const AIReview = () => {
   const [error, setError] = useState(null);
   // Toast本地state
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' });
-  // 本地showToast函数
   const showToast = (message, type = 'info') => {
     setToast({ visible: true, message, type });
   };
   const { resetColors } = useContext(BgEffectContext);
-  
-  // 新增：从URL参数获取面试时长
   const urlDuration = searchParams.get('duration');
   const [actualDuration, setActualDuration] = useState(urlDuration ? parseInt(urlDuration) : null);
-  
-  // 新增：实时更新面试时长的状态
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [analysisStatus, setAnalysisStatus] = useState('checking');
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [analysisStage, setAnalysisStage] = useState('');
+  const [autoRefreshTimer, setAutoRefreshTimer] = useState(null);
+  const completedRef = useRef(false);
+  const [analysis, setAnalysis] = useState(null);
 
   useEffect(() => {
     if (recordId) {
-      loadInterviewData();
+      completedRef.current = false; // 新面试时重置
+      loadAnalysisResult();
     }
   }, [recordId]);
 
-  // 新增：实时更新当前时间，用于计算进行中的面试时长
   useEffect(() => {
-    // 如果面试没有结束时间，说明还在进行中，需要实时更新
-    // 但如果有传递的时长，则不需要实时更新
     if (interviewData && !interviewData.endTime && !actualDuration) {
       const timer = setInterval(() => {
         setCurrentTime(new Date());
       }, 1000);
-      
       return () => clearInterval(timer);
     }
   }, [interviewData?.endTime, actualDuration]);
 
-  const loadInterviewData = async () => {
+  useEffect(() => {
+    if (analysisStatus === 'analyzing') {
+      const timer = setInterval(() => {
+        fetchAnalysisProgress();
+      }, 2000);
+      setAutoRefreshTimer(timer);
+      return () => {
+        if (timer) clearInterval(timer);
+      };
+    }
+  }, [analysisStatus, recordId]);
+
+  const fetchAnalysisProgress = async () => {
+    try {
+      const res = await analysisAPI.getAnalysisProgress(recordId);
+      const data = res.data;
+      setAnalysisProgress(data.progress);
+      setAnalysisStage(data.stage);
+
+      // 99%时只显示等待保存，不跳转
+      if (data.progress === 99) {
+        setAnalysisStatus('analyzing');
+        completedRef.current = false;
+        return;
+      }
+
+      // 100%时，只有数据库有分析结果才跳转
+      if (data.progress >= 100 && !completedRef.current) {
+        const recordRes = await getInterviewRecord(recordId);
+        const record = recordRes.data;
+        if (record.overallScore || record.overallFeedback || record.skillAssessment) {
+          completedRef.current = true;
+          setAnalysisStatus('completed');
+          setAnalysisProgress(100);
+          setInterviewData(record);
+          showToast('分析完成！', 'success');
+        } else {
+          // 数据库还没写好，继续显示99%
+          setAnalysisStatus('analyzing');
+          setAnalysisProgress(99);
+          setAnalysisStage('正在保存分析结果...');
+          completedRef.current = false;
+        }
+      } else if (data.progress < 99) {
+        setAnalysisStatus('analyzing');
+        completedRef.current = false;
+      }
+    } catch (e) {
+      setAnalysisStage('进度获取失败');
+    }
+  };
+
+  // 加载分析结果（优先用analysis-result接口）
+  const loadAnalysisResult = async () => {
     try {
       setLoading(true);
-      const response = await getInterviewRecord(recordId);
-      console.log('后端返回的面试数据:', response.data);
-      console.log('后端返回的actualDuration:', response.data?.actualDuration);
-      setInterviewData(response.data);
-      
-      // 使用后端返回的时长数据
-      if (response.data?.actualDuration) {
-        setActualDuration(response.data.actualDuration);
-        console.log('使用后端返回的actualDuration:', response.data.actualDuration);
-      } else if (urlDuration) {
-        setActualDuration(parseInt(urlDuration));
-        console.log('使用URL参数中的duration:', urlDuration);
+      const res = await analysisAPI.getAnalysisResult(recordId);
+      if (res.data && res.data.success) {
+        setInterviewData(res.data.record);
+        setAnalysis(res.data.analysis || null);
+        if (res.data.record?.actualDuration) {
+          setActualDuration(res.data.record.actualDuration);
+        } else if (urlDuration) {
+          setActualDuration(parseInt(urlDuration));
+        }
+      } else {
+        setError(res.data?.error || '获取分析结果失败');
       }
-    } catch (error) {
-      console.error('加载面试数据失败:', error);
-      setError('加载面试数据失败');
-      showToast('加载面试数据失败', 'error');
+    } catch (e) {
+      setError('获取分析结果失败');
     } finally {
       setLoading(false);
     }
   };
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+      }
+    };
+  }, [autoRefreshTimer]);
 
   const handleLogout = () => {
     removeToken();
@@ -312,6 +373,116 @@ const AIReview = () => {
     );
   }
 
+  // 分析进行中的状态显示
+  if (analysisStatus === 'analyzing') {
+    return (
+      <div className="glass-effect" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <Toast message={toast.message} type={toast.type} visible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
+        <Card style={{ maxWidth: 600, padding: '40px', margin: '40px auto', textAlign: 'center' }}>
+          <div style={{ fontSize: 64, marginBottom: 24 }}>🔍</div>
+          <Title level={2} style={{ color: '#1e293b', marginBottom: '16px' }}>
+            正在分析面试表现
+          </Title>
+          <Text type="secondary" style={{ fontSize: '16px', marginBottom: '32px' }}>
+            正在对您的面试视频、音频和对话内容进行多模态分析，请稍候...
+          </Text>
+          {/* 进度条 */}
+          <div style={{ marginBottom: '24px' }}>
+            <div style={{ 
+              width: '100%', 
+              height: 8, 
+              background: '#e2e8f0', 
+              borderRadius: 4, 
+              overflow: 'hidden',
+              marginBottom: '12px'
+            }}>
+              <div style={{ 
+                width: `${analysisProgress}%`, 
+                height: '100%', 
+                background: 'linear-gradient(90deg, #3b82f6 0%, #22d3ee 100%)',
+                transition: 'width 0.5s ease',
+                borderRadius: 4
+              }} />
+            </div>
+            <Text style={{ fontSize: '14px', color: '#64748b' }}>
+              {analysisProgress}% 完成
+            </Text>
+          </div>
+          {/* 分析步骤/状态 */}
+          <div style={{ 
+            background: '#f8fafc', 
+            padding: '20px', 
+            borderRadius: '12px', 
+            border: '1px solid #e2e8f0',
+            marginBottom: '24px'
+          }}>
+            <Text style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6' }}>
+              {analysisStage || '分析准备中...'}
+            </Text>
+          </div>
+          <Text style={{ fontSize: '12px', color: '#94a3b8' }}>
+            分析完成后将自动显示详细报告
+          </Text>
+          {/* 返回主页按钮 */}
+          <div style={{ marginTop: '24px' }}>
+            <Button 
+              type="primary" 
+              onClick={() => navigate('/interview-types')}
+              style={{ 
+                borderRadius: '8px', 
+                height: '40px', 
+                fontSize: '14px', 
+                minWidth: '120px',
+                background: '#3b82f6',
+                border: 'none'
+              }}
+            >
+              返回主页
+            </Button>
+          </div>
+          <div style={{ marginTop: 12, color: '#64748b', fontSize: 13 }}>
+            如需稍后查看分析结果，可在主页进入“历史记录”并点击详情页查看完整报告。
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // 分数展示组件
+  const ScoreBlock = () => {
+    // 优先用analysis
+    let scoreItems = [];
+    if (analysis) {
+      scoreItems = [
+        { label: '专业知识', value: analysis.kg },
+        { label: '技能匹配', value: analysis.sl },
+        { label: '语言表达', value: analysis.ep },
+        { label: '逻辑思维', value: analysis.lo },
+        { label: '创新能力', value: analysis.in },
+        { label: '应变抗压', value: analysis.st },
+      ].filter(item => typeof item.value === 'number');
+    } else if (interviewData?.skillAssessment) {
+      try {
+        const skillObj = JSON.parse(interviewData.skillAssessment);
+        scoreItems = Object.entries(skillObj).map(([k, v]) => ({ label: k, value: v }));
+      } catch {}
+    }
+    if (scoreItems.length === 0) return null;
+    return (
+      <Card style={{ borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', marginBottom: 24, background: '#fff', border: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32 }}>
+          {scoreItems.map((item, idx) => (
+            <div key={item.label} style={{ flex: 1, minWidth: 180 }}>
+              <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>{item.label}</div>
+              <div style={{ color: '#3b82f6', fontWeight: 700, fontSize: 22 }}>{item.value} <span style={{ fontSize: 14, color: '#64748b', fontWeight: 400 }}>/ 100</span></div>
+              <Progress percent={item.value} color={item.value >= 80 ? '#22c55e' : item.value >= 60 ? '#faad14' : '#ef4444'} showInfo={false} />
+            </div>
+          ))}
+        </div>
+      </Card>
+    );
+  };
+
   // 解析JSON数据
   let skillData = {};
   let issues = {};
@@ -347,7 +518,7 @@ const AIReview = () => {
       </style>
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
       <Card id="ai-review-main-card" style={{ maxWidth: 1200, padding: '32px', margin: '40px auto' }}>
-        {/* 页面标题 */}
+        {/* 页面标题和总分 */}
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🏆</div>
           <Title level={2} style={{ color: '#1e293b', marginBottom: '16px' }}>
@@ -356,72 +527,36 @@ const AIReview = () => {
           <Text type="secondary" style={{ fontSize: '16px' }}>
             基于AI深度分析的面试表现评估报告
           </Text>
-        </div>
-
-        {/* 面试基本信息 */}
-        {interviewData && (
-          <Card style={{ borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', marginBottom: '24px', border: '1px solid #e2e8f0', background: '#fff' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32 }}>
-              <div style={{ flex: 1, minWidth: 180 }}>
-                <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>总体评分</div>
-                <div style={{ color: '#3b82f6', fontWeight: 700, fontSize: 28 }}>{interviewData.overallScore || 0} <span style={{ fontSize: 16, color: '#64748b', fontWeight: 400 }}>/ 100</span></div>
-              </div>
-              <div style={{ flex: 1, minWidth: 180 }}>
-                <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>面试岗位</div>
-                <div style={{ color: '#10b981', fontWeight: 700, fontSize: 22 }}>{interviewData.position || '未知'}</div>
-              </div>
-              <div style={{ flex: 1, minWidth: 180 }}>
-                <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>面试时长</div>
-                <div style={{ 
-                  color: '#f59e0b', 
-                  fontWeight: 700, 
-                  fontSize: 22,
-                  animation: (!interviewData?.endTime && !actualDuration) ? 'pulse 2s infinite' : 'none'
-                }}>
-                  {formatDuration(interviewData?.startTime, interviewData?.endTime, currentTime, actualDuration)}
-                </div>
-              </div>
-              <div style={{ flex: 1, minWidth: 180 }}>
-                <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>面试状态</div>
-                <div style={{ 
-                  color: (interviewData?.endTime || actualDuration) ? '#10b981' : '#f59e0b', 
-                  fontWeight: 700, 
-                  fontSize: 20 
-                }}>
-                  {(interviewData?.endTime || actualDuration) ? '已完成' : '进行中'}
-                </div>
-              </div>
-              <div style={{ flex: 1, minWidth: 180 }}>
-                <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>AI模型</div>
-                <div style={{ color: '#8b5cf6', fontWeight: 700, fontSize: 20 }}>{interviewData.aiModel || 'GPT-4'}</div>
-              </div>
+          {/* 总分展示 */}
+          {(interviewData?.overallScore || analysis?.overallScore) && (
+            <div style={{ marginTop: 16, fontSize: 28, color: '#3b82f6', fontWeight: 700 }}>
+              总分：{interviewData?.overallScore || analysis?.overallScore} <span style={{ fontSize: 16, color: '#64748b', fontWeight: 400 }}>/ 100</span>
             </div>
-          </Card>
-        )}
-
-        {/* 总体反馈 */}
-        {interviewData?.overallFeedback && (
-          <Card title={<span style={{ fontWeight: 600, color: '#1e293b' }}>总体反馈</span>} style={{ borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', marginBottom: '24px', border: '1px solid #e2e8f0', background: '#fff' }}>
-            <Paragraph style={{ fontSize: '16px', lineHeight: '1.6', color: '#334155' }}>
-              {interviewData.overallFeedback}
-            </Paragraph>
-          </Card>
-        )}
-
-        {/* 主要内容区域 */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
-          <div style={{ flex: 1, minWidth: 320 }}>
-            <SkillRadarChart skillData={skillData} />
-          </div>
-          <div style={{ flex: 1, minWidth: 320 }}>
-            <KeyIssues issues={issues} />
-          </div>
+          )}
+          {/* 分析状态指示器 */}
+          {analysisStatus === 'completed' && (
+            <div style={{ 
+              marginTop: '16px',
+              background: '#f0fdf4',
+              color: '#166534',
+              padding: '8px 16px',
+              borderRadius: '20px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '14px',
+              fontWeight: 500,
+              border: '1px solid #bbf7d0'
+            }}>
+              <span>✅</span>
+              <span>分析完成</span>
+            </div>
+          )}
         </div>
-
-        <div style={{ marginTop: '24px' }}>
-          <ImprovementSuggestions suggestions={issues?.建议} />
-        </div>
-
+        {/* 分数块 */}
+        <ScoreBlock />
+        {/* 改进建议 */}
+        <ImprovementSuggestions suggestions={interviewData?.improvementSuggestions && (typeof interviewData.improvementSuggestions === 'string' ? JSON.parse(interviewData.improvementSuggestions) : interviewData.improvementSuggestions)} />
         {/* 操作按钮 */}
         <div style={{ textAlign: 'center', marginTop: '40px', padding: '24px', background: '#fff', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'center', gap: '32px' }}>
           <Button size="large" onClick={() => {

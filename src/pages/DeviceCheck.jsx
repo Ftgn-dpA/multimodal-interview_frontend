@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import { Title, Text } from '../components/ui/Typography';
@@ -9,6 +9,8 @@ import { showToast } from '../utils/toast';
 const DeviceCheck = () => {
   const navigate = useNavigate();
   const { type } = useParams();
+  const location = useLocation();
+  const selectedResume = location.state?.selectedResume;
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [mediaStream, setMediaStream] = useState(null);
@@ -161,7 +163,10 @@ const DeviceCheck = () => {
 
   const handleReady = () => {
     stopDeviceCheck();
-    navigate(`/interview/${type}`);
+    // 传递简历信息到面试页面
+    navigate(`/interview/${type}`, { 
+      state: { selectedResume: selectedResume } 
+    });
   };
 
   return (
