@@ -127,6 +127,16 @@ const ImprovementSuggestions = ({ suggestions }) => {
     ];
   }
   suggestionList = suggestionList.map(item => typeof item === 'string' ? item : String(item));
+  // 友好处理“待评测”
+  if (suggestionList.length === 1 && suggestionList[0] === '待评测') {
+    return (
+      <Card title="改进建议" style={{ borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+        <div style={{ color: '#a3a3a3', fontStyle: 'italic', fontSize: 16, textAlign: 'center', padding: '32px 0' }}>
+          AI分析尚未完成，建议生成后将在此展示。
+        </div>
+      </Card>
+    );
+  }
   return (
     <Card title="改进建议" style={{ borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -319,10 +329,14 @@ const AIReview = () => {
           setActualDuration(parseInt(urlDuration));
         }
       } else {
-        setError(res.data?.error || '获取分析结果失败');
+        // 关键：分析未完成时，自动切换到分析中状态
+        setAnalysisStatus('analyzing');
+        setError(null);
       }
     } catch (e) {
-      setError('获取分析结果失败');
+      // 关键：接口报错时也切换到分析中
+      setAnalysisStatus('analyzing');
+      setError(null);
     } finally {
       setLoading(false);
     }
@@ -379,69 +393,31 @@ const AIReview = () => {
       <div className="glass-effect" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <Toast message={toast.message} type={toast.type} visible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
         <Card style={{ maxWidth: 600, padding: '40px', margin: '40px auto', textAlign: 'center' }}>
-          <div style={{ fontSize: 64, marginBottom: 24 }}>🔍</div>
+          <div style={{ fontSize: 64, marginBottom: 24 }}>⏳</div>
           <Title level={2} style={{ color: '#1e293b', marginBottom: '16px' }}>
-            正在分析面试表现
+            测评分析进行中
           </Title>
-          <Text type="secondary" style={{ fontSize: '16px', marginBottom: '32px' }}>
-            正在对您的面试视频、音频和对话内容进行多模态分析，请稍候...
+          <Text type="secondary" style={{ fontSize: '16px', marginBottom: '32px', color: '#3b82f6' }}>
+            您的面试视频、音频和对话内容正在AI深度分析中，请耐心等待...
           </Text>
           {/* 进度条 */}
           <div style={{ marginBottom: '24px' }}>
-            <div style={{ 
-              width: '100%', 
-              height: 8, 
-              background: '#e2e8f0', 
-              borderRadius: 4, 
-              overflow: 'hidden',
-              marginBottom: '12px'
-            }}>
-              <div style={{ 
-                width: `${analysisProgress}%`, 
-                height: '100%', 
-                background: 'linear-gradient(90deg, #3b82f6 0%, #22d3ee 100%)',
-                transition: 'width 0.5s ease',
-                borderRadius: 4
-              }} />
-            </div>
-            <Text style={{ fontSize: '14px', color: '#64748b' }}>
-              {analysisProgress}% 完成
-            </Text>
-          </div>
-          {/* 分析步骤/状态 */}
-          <div style={{ 
-            background: '#f8fafc', 
-            padding: '20px', 
-            borderRadius: '12px', 
-            border: '1px solid #e2e8f0',
-            marginBottom: '24px'
-          }}>
-            <Text style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6' }}>
+            <Progress percent={analysisProgress} color="#3b82f6" showInfo={true} />
+            <Text style={{ fontSize: '14px', color: '#3b82f6' }}>
               {analysisStage || '分析准备中...'}
             </Text>
           </div>
           <Text style={{ fontSize: '12px', color: '#94a3b8' }}>
-            分析完成后将自动显示详细报告
+            分析完成后将自动显示详细报告，您也可在历史记录中查看进度。
           </Text>
-          {/* 返回主页按钮 */}
           <div style={{ marginTop: '24px' }}>
             <Button 
               type="primary" 
               onClick={() => navigate('/interview-types')}
-              style={{ 
-                borderRadius: '8px', 
-                height: '40px', 
-                fontSize: '14px', 
-                minWidth: '120px',
-                background: '#3b82f6',
-                border: 'none'
-              }}
+              style={{ borderRadius: '8px', height: '40px', fontSize: '14px', minWidth: '120px', background: '#3b82f6', border: 'none' }}
             >
               返回主页
             </Button>
-          </div>
-          <div style={{ marginTop: 12, color: '#64748b', fontSize: 13 }}>
-            如需稍后查看分析结果，可在主页进入“历史记录”并点击详情页查看完整报告。
           </div>
         </Card>
       </div>
@@ -460,11 +436,29 @@ const AIReview = () => {
         { label: '逻辑思维', value: analysis.lo },
         { label: '创新能力', value: analysis.in },
         { label: '应变抗压', value: analysis.st },
-      ].filter(item => typeof item.value === 'number');
+      ].map(item => {
+        // 兼容待评测
+        if (item.value === undefined || item.value === null || item.value === '待评测') {
+          return { ...item, value: '待评测', isPending: true };
+        }
+        return { ...item, isPending: false };
+      });
     } else if (interviewData?.skillAssessment) {
       try {
         const skillObj = JSON.parse(interviewData.skillAssessment);
-        scoreItems = Object.entries(skillObj).map(([k, v]) => ({ label: k, value: v }));
+        scoreItems = [
+          { label: '专业知识', value: skillObj['专业知识'] },
+          { label: '技能匹配', value: skillObj['技能匹配'] },
+          { label: '语言表达', value: skillObj['语言表达'] },
+          { label: '逻辑思维', value: skillObj['逻辑思维'] },
+          { label: '创新能力', value: skillObj['创新能力'] },
+          { label: '应变抗压', value: skillObj['应变抗压'] },
+        ].map(item => {
+          if (item.value === undefined || item.value === null || item.value === '待评测') {
+            return { ...item, value: '待评测', isPending: true };
+          }
+          return { ...item, isPending: false };
+        });
       } catch {}
     }
     if (scoreItems.length === 0) return null;
@@ -474,8 +468,12 @@ const AIReview = () => {
           {scoreItems.map((item, idx) => (
             <div key={item.label} style={{ flex: 1, minWidth: 180 }}>
               <div style={{ color: '#64748b', fontSize: 15, marginBottom: 6 }}>{item.label}</div>
-              <div style={{ color: '#3b82f6', fontWeight: 700, fontSize: 22 }}>{item.value} <span style={{ fontSize: 14, color: '#64748b', fontWeight: 400 }}>/ 100</span></div>
-              <Progress percent={item.value} color={item.value >= 80 ? '#22c55e' : item.value >= 60 ? '#faad14' : '#ef4444'} showInfo={false} />
+              {item.isPending ? (
+                <div style={{ color: '#a3a3a3', fontStyle: 'italic', fontSize: 18, fontWeight: 400, marginBottom: 8 }}>待评测</div>
+              ) : (
+                <div style={{ color: '#3b82f6', fontWeight: 700, fontSize: 22 }}>{item.value} <span style={{ fontSize: 14, color: '#64748b', fontWeight: 400 }}>/ 100</span></div>
+              )}
+              {!item.isPending && <Progress percent={item.value} color={item.value >= 80 ? '#22c55e' : item.value >= 60 ? '#faad14' : '#ef4444'} showInfo={false} />}
             </div>
           ))}
         </div>
