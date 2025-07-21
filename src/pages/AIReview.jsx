@@ -555,6 +555,18 @@ const AIReview = () => {
         <ScoreBlock />
         {/* 改进建议 */}
         <ImprovementSuggestions suggestions={interviewData?.improvementSuggestions && (typeof interviewData.improvementSuggestions === 'string' ? JSON.parse(interviewData.improvementSuggestions) : interviewData.improvementSuggestions)} />
+        {/* 推荐学习资源 */}
+        {analysis?.modelPath && (
+          <Card title="推荐学习资源" style={{ borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', marginTop: 24, marginBottom: 24 }}>
+            <div style={{ color: '#2563eb', fontSize: 15, wordBreak: 'break-all', lineHeight: 1.7 }}>
+              <ReactMarkdown 
+                components={{
+                  a: ({node, ...props}) => <a href={props.href} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', textDecoration: 'underline', cursor: 'pointer' }}>{props.children}</a>
+                }}
+              >{analysis.modelPath}</ReactMarkdown>
+            </div>
+          </Card>
+        )}
         {/* 操作按钮 */}
         <div style={{ textAlign: 'center', marginTop: '40px', padding: '24px', background: '#fff', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'center', gap: '32px' }}>
           <Button size="large" onClick={() => {
