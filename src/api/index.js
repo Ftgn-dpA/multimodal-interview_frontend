@@ -103,6 +103,9 @@ export const interviewAPI = {
       },
     });
   },
+  
+  // 获取首句提示词
+  getPrompt: (scene, position) => api.get(`/interview/prompt?scene=${encodeURIComponent(scene)}&position=${encodeURIComponent(position)}`),
 };
 
 // 简历相关接口

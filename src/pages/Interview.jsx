@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { startInterview, endInterview, deleteInterviewRecord, getInterviewInfo, analysisAPI, resumeAPI } from '../api';
+import { startInterview, endInterview, deleteInterviewRecord, getInterviewInfo, analysisAPI, resumeAPI, interviewAPI } from '../api';
 import api from '../api';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -482,13 +482,21 @@ const Interview = () => {
         // 2. 获取面试信息（不创建记录）
         try {
           const res = await getInterviewInfo(type);
-        if (!isMounted) return;
-        setQuestion(res.data.question);
-        setInterviewInfo({ position: res.data.position, aiModel: res.data.aiModel });
+          if (!isMounted) return;
+          setQuestion(res.data.question);
+          setInterviewInfo({
+            position: res.data.position,
+            aiModel: res.data.aiModel,
+            category: res.data.category || type // 保证有 category 字段
+          });
         } catch (e) {
           // 如果获取面试信息失败，使用默认值
           setQuestion('');
-          setInterviewInfo({ position: getPositionByType(type), aiModel: 'GPT-4' });
+          setInterviewInfo({
+            position: getPositionByType(type),
+            aiModel: '星火V4.0',
+            category: type // 兜底
+          });
         }
         
         // 3. 自动启动虚拟人
@@ -570,6 +578,46 @@ const Interview = () => {
     // eslint-disable-next-line
   }, [type]);
 
+  // 虚拟人渲染完成后自动发送首句提示词（严格按文本交互协议）
+  useEffect(() => {
+    if (
+      avatarReady &&
+      interviewInfo &&
+      interviewInfo.position &&
+      interviewInfo.category &&
+      streamInfo?.session
+    ) {
+      if (!window.__promptSent) {
+        window.__promptSent = true;
+        interviewAPI.getPrompt(interviewInfo.category, interviewInfo.position)
+          .then(res => {
+            const prompt = res.data;
+            if (!prompt || prompt.trim() === '') {
+              // setPromptSentStatus('fail'); // 移除此状态
+              return;
+            }
+            // 按协议组装消息体
+            const payload = {
+              sessionId: streamInfo.session,
+              text: prompt,
+              role: 'interviewer', // 如协议有要求可调整
+              type: 'text'
+            };
+            api.post('/avatar/send', payload)
+              .then(() => {
+                // setPromptSentStatus('success'); // 移除此状态
+              })
+              .catch(() => {
+                // setPromptSentStatus('fail'); // 移除此状态
+              });
+          })
+          .catch(() => {
+            // setPromptSentStatus('fail'); // 移除此状态
+          });
+      }
+    }
+    return () => { window.__promptSent = false; };
+  }, [avatarReady, interviewInfo, streamInfo?.session]);
 
 
   // 格式化时间
